@@ -14,7 +14,9 @@
   },
   "type": "module",
   "scripts": {
-    "build": "bun build index.ts --target=bun --outfile dist/loader-bundle.js"
+    "build": "bun build index.ts --target=bun --outfile dist/loader-bundle.js",
+    "test": "bun test",
+    "lint": "eslint . && prettier --check ."
   },
   "dependencies": {
     "@repo/db": "workspace:*",

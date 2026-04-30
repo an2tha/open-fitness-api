@@ -25,6 +25,7 @@ export const foodsTable = pgTable('foods', {
   ),
 }, (t) => ({
   searchIdx: index('foods_search_idx').using('gin', t.searchVector),
+  nameTrgmIdx: index('foods_name_trgm_idx').using('gin', t.name.op('gin_trgm_ops')),
 }));
 
 export type Food = InferSelectModel<typeof foodsTable>;

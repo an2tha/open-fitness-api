@@ -16,6 +16,10 @@
     "typescript": "^5"
   },
   "types": "./index.ts",
+  "scripts": {
+    "test": "bun test",
+    "lint": "eslint . && prettier --check ."
+  },
   "dependencies": {
     "drizzle-orm": "^0.45.2"
   }

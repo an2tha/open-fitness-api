@@ -14,6 +14,7 @@ export const nutrientsTable = pgTable('nutrients', {
 }, (t) => ({
   nameUnitIdx: uniqueIndex('nutrients_name_unit_idx').on(t.name, t.unit),
   searchIdx: index('nutrients_search_idx').using('gin', t.searchVector),
+  nameTrgmIdx: index('nutrients_name_trgm_idx').using('gin', t.name.op('gin_trgm_ops')),
 }));
 
 export const foodNutrientsTable = pgTable(

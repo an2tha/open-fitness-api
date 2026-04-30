@@ -1,5 +1,5 @@
-import { pgTable, integer, varchar, timestamp, primaryKey } from 'drizzle-orm/pg-core';
-import { type InferSelectModel, type InferInsertModel } from 'drizzle-orm';
+import { pgTable, integer, varchar, timestamp, primaryKey, index, customType } from 'drizzle-orm/pg-core';
+import { type InferSelectModel, type InferInsertModel, sql } from 'drizzle-orm';
 
 export const supplementsTable = pgTable('supplements', {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
@@ -11,7 +11,15 @@ export const supplementsTable = pgTable('supplements', {
   servingSize: varchar({ length: 2056 }),
   servingUnit: varchar({ length: 2056 }),
   updatedAt: timestamp().defaultNow(),
-});
+  searchVector: customType<{ data: string }>({
+    dataType() { return 'tsvector'; },
+  })('search_vector').generatedAlwaysAs(
+    sql`to_tsvector('english', "name" || ' ' || COALESCE("brand", ''))`
+  ),
+}, (t) => ({
+  searchIdx: index('supplements_search_idx').using('gin', t.searchVector),
+  nameTrgmIdx: index('supplements_name_trgm_idx').using('gin', t.name.op('gin_trgm_ops')),
+}));
 
 export const ingredientsTable = pgTable('ingredients', {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),

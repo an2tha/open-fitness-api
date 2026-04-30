@@ -13,7 +13,9 @@
     "typescript": "^5"
   },
   "scripts": {
-    "build": "bun build ./index.ts --compile --outfile ofdata-normalizer"
+    "build": "bun build ./index.ts --compile --outfile ofdata-normalizer",
+    "test": "bun test",
+    "lint": "eslint . && prettier --check ."
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.55",
