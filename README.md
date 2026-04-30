@@ -1,159 +1,71 @@
-# Turborepo starter
+# Open Fitness Data
 
-This Turborepo starter is maintained by the Turborepo core team.
+Open Fitness Data is a comprehensive open source project that provides a high performance API for fitness related information including food items, supplements, and exercises. The system aggregates and normalizes data from multiple international sources to provide a unified interface for developers and researchers.
 
-## Using this example
+## Core Features
 
-Run the following command:
+The platform utilizes a PostgreSQL backend with specialized indexing for trigram and full text search. This architecture ensures efficient data retrieval and fuzzy matching capabilities.
 
-```sh
-npx create-turbo@latest
-```
+Integration with Large Language Models allows for the automated normalization of nutrient names and exercise patterns from disparate data sources.
 
-## What's inside?
+The project is designed for portability and can be deployed in private environments using Docker.
 
-This Turborepo includes the following packages/apps:
+A complete OpenAPI 3.0 specification is provided for automated documentation and client generation.
 
-### Apps and Packages
+## Getting Started
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+### Prerequisites
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+You must have Bun installed on your system to manage dependencies and execute the application. A PostgreSQL instance is required for data storage.
 
-### Utilities
+### Installation
 
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+Clone the repository and install the necessary dependencies using the following command.
 
 ```sh
-cd my-turborepo
-turbo build
+bun install
 ```
 
-Without global `turbo`, use your package manager:
+### Automatic Setup
+
+The project includes a comprehensive setup utility that manages environment configuration, infrastructure deployment, and database synchronization.
 
 ```sh
-cd my-turborepo
-npx turbo build
-bun dlx turbo build
-bun exec turbo build
+bun start
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+### Manual Configuration
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+If you prefer to configure the system manually, copy the example environment file.
 
 ```sh
-turbo build --filter=docs
+cp .env.example .env
 ```
 
-Without global `turbo`:
+Synchronize the database schema using the following command.
 
 ```sh
-npx turbo build --filter=docs
-bun exec turbo build --filter=docs
-bun exec turbo build --filter=docs
+bun run --filter api db:push
 ```
 
-### Develop
+### Infrastructure
 
-To develop all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+Deploy the database and associated services using Docker Compose.
 
 ```sh
-cd my-turborepo
-turbo dev
+docker-compose up -d
 ```
 
-Without global `turbo`, use your package manager:
+## Data Loading
+
+The database is initialized without records. You must execute the data loaders to populate the system with information from various sources.
 
 ```sh
-cd my-turborepo
-npx turbo dev
-bun exec turbo dev
-bun exec turbo dev
+bun run --filter loaders start all
 ```
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+Please note that the initial synchronization process may require significant time and resources depending on your system specifications.
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+## License
 
-```sh
-turbo dev --filter=web
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo dev --filter=web
-bun exec turbo dev --filter=web
-bun exec turbo dev --filter=web
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo login
-bun exec turbo login
-bun exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-bun exec turbo link
-bun exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+This software is released under the Apache License, Version 2.0. Detailed information regarding usage and distribution can be found in the LICENSE file.

@@ -8,7 +8,7 @@ export default [
   eslintConfigPrettier,
   ...tseslint.configs.recommended,
   {
-    ignores: ['**/dist/**', '**/node_modules/**', '**/.turbo/**', '**/drizzle/**', 'bun.lock'],
+    ignores: ['**/dist/**', '**/node_modules/**', '**/.turbo/**', '**/drizzle/**', 'bun.lock', '**/.next/**'],
   },
   {
     rules: {

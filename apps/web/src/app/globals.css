@@ -1,0 +1,62 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-ibm-plex-mono);
+  --font-serif: var(--font-serif);
+}
+
+:root {
+  --background: oklch(0.05 0 0);
+  --foreground: oklch(0.9 0 0);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  scroll-behavior: smooth;
+}
+
+@layer base {
+  html,
+  body {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer utilities {
+  .hide-spinners::-webkit-outer-spin-button,
+  .hide-spinners::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .hide-spinners {
+    -moz-appearance: textfield;
+  }
+  .animate-grid-flow {
+    animation: grid-flow 4s linear infinite;
+  }
+  @keyframes grid-flow {
+    0% {
+      background-position: 0 0;
+    }
+    100% {
+      background-position: 0 4rem;
+    }
+  }
+  .snap-section {
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}

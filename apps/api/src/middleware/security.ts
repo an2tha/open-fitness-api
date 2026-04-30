@@ -23,7 +23,7 @@ function cleanupRateLimitStore() {
 setInterval(cleanupRateLimitStore, 60000);
 
 export async function rateLimitMiddleware(c: Context, next: Next) {
-  if (env.NODE_ENV === 'test') {
+  if (!env.RATE_LIMIT_ENABLED || env.NODE_ENV === 'test') {
     await next();
     return;
   }

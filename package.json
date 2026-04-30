@@ -1,9 +1,10 @@
 {
   "name": "open-fitness-data",
-  "private": true,
   "type": "module",
+  "license": "Apache-2.0",
   "scripts": {
     "build": "turbo run build",
+    "start": "bun run scripts/setup.ts",
     "dev": "turbo run dev",
     "lint": "eslint . --fix && prettier --check .",
     "test": "turbo run test",
@@ -12,8 +13,11 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.16.0",
+    "@inquirer/prompts": "^8.4.2",
+    "api": "workspace:*",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.1",
+    "postgres": "^3.4.9",
     "prettier": "^3.7.4",
     "turbo": "^2.9.6",
     "typescript": "5.9.2",
@@ -28,6 +32,7 @@
     "packages/*"
   ],
   "dependencies": {
+    "@types/node": "^25.6.0",
     "nanoid": "^5.1.9"
   }
 }

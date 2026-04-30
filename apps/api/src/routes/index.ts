@@ -4,6 +4,7 @@ import foods from './foods';
 import exercises from './exercises';
 import supplements from './supplements';
 import nutrients from './nutrients';
+import adminApiKeys from './admin/api-keys';
 
 const routes = new OpenAPIHono();
 
@@ -105,6 +106,7 @@ routes.route('/foods', foods);
 routes.route('/exercises', exercises);
 routes.route('/supplements', supplements);
 routes.route('/nutrients', nutrients);
+routes.route('/admin/api-keys', adminApiKeys);
 
 routes.get('/openapi.json', (c) => {
   try {

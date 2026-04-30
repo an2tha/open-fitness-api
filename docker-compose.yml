@@ -1,0 +1,38 @@
+services:
+  api:
+    build: .
+    ports:
+      - '3000:3000'
+    environment:
+      - DATABASE_URL=postgres://user:password@db:5432/fitnessdata
+      - NODE_ENV=production
+      - RATE_LIMIT_ENABLED=true
+      - RATE_LIMIT_MAX=1000
+    networks:
+      - fitness_net
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=fitnessdata
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U user -d fitnessdata']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - fitness_net
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+networks:
+  fitness_net:
+    driver: bridge
+
+volumes:
+  postgres_data:
