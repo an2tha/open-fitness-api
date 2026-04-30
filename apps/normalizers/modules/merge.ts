@@ -27,7 +27,7 @@ const colors = {
 export const mergeNutrients = async (verbose = false) => {
   const logger = getLogger(verbose);
   
-  logger.setStatus('Preparing migration summary...');
+  logger.info('Preparing migration summary...');
   
   const [mappingCountResult] = await db.select({ value: count() }).from(nutrientsNormalizedMappingTable);
   const [foodNutrientCountResult] = await db.select({ value: count() }).from(foodNutrientsTable);
@@ -62,22 +62,20 @@ ${sampleMappings.map(m => `  ${colors.dim}•${colors.reset} ${m.original.padEnd
   4. ${colors.yellow}PURGE${colors.reset} all old non-normalized nutrients
 `;
 
-  await logger.interactive(async () => {
-    console.log(summary);
-    const shouldProceed = await confirm({
-      message: 'Do you want to proceed with this migration and PURGE old data?',
-      default: false,
-    });
-    
-    if (!shouldProceed) {
-      console.log(`${colors.yellow}Migration cancelled.${colors.reset}`);
-      process.exit(0);
-    }
+  console.log(summary);
+  const shouldProceed = await confirm({
+    message: 'Do you want to proceed with this migration and PURGE old data?',
+    default: false,
   });
+  
+  if (!shouldProceed) {
+    console.log(`${colors.yellow}Migration cancelled.${colors.reset}`);
+    process.exit(0);
+  }
 
   logger.info('Starting nutrient merge process...');
 
-  logger.setStatus('Populating food_nutrients_normalized...');
+  logger.info('Populating food_nutrients_normalized...');
   try {
     await db.execute(sql`
       INSERT INTO "food_nutrients_normalized" ("foodId", "nutrientId", "value")
@@ -91,7 +89,7 @@ ${sampleMappings.map(m => `  ${colors.dim}•${colors.reset} ${m.original.padEnd
     throw error;
   }
 
-  logger.setStatus('Migrating metadata to main nutrients table...');
+  logger.info('Migrating metadata to main nutrients table...');
   try {
     await db.execute(sql`
       INSERT INTO "nutrients" ("name", "unit")
@@ -103,7 +101,7 @@ ${sampleMappings.map(m => `  ${colors.dim}•${colors.reset} ${m.original.padEnd
     throw error;
   }
 
-  logger.setStatus('Updating final food_nutrients associations...');
+  logger.info('Updating final food_nutrients associations...');
   try {
     await db.execute(sql`
       INSERT INTO "food_nutrients" ("foodId", "nutrientId", "value")
@@ -118,7 +116,7 @@ ${sampleMappings.map(m => `  ${colors.dim}•${colors.reset} ${m.original.padEnd
     throw error;
   }
 
-  logger.setStatus('Purging old non-normalized nutrients...');
+  logger.info('Purging old non-normalized nutrients...');
   try {
     await db.execute(sql`
       DELETE FROM "nutrients" 
@@ -133,14 +131,13 @@ ${sampleMappings.map(m => `  ${colors.dim}•${colors.reset} ${m.original.padEnd
     logger.warn(`Could not purge all old nutrients: ${error.message}`);
   }
 
-  logger.clearStatus();
   logger.info('Nutrient merge and purge complete.');
 };
 
 export const mergeExercises = async (verbose = false) => {
   const logger = getLogger(verbose);
   
-  logger.setStatus('Preparing exercise migration summary...');
+  logger.info('Preparing exercise migration summary...');
   const [mappingCount] = await db.select({ value: count() }).from(exercisesNormalizedMappingTable);
   const [exerciseCount] = await db.select({ value: count() }).from(exercisesTable);
 
@@ -159,22 +156,20 @@ ${colors.bold}${colors.magenta}└───────────────�
   4. ${colors.yellow}PURGE${colors.reset} all old non-normalized exercises
 `;
 
-  await logger.interactive(async () => {
-    console.log(summary);
-    const shouldProceed = await confirm({
-      message: 'Do you want to proceed with this exercise migration and PURGE old data?',
-      default: false,
-    });
-    
-    if (!shouldProceed) {
-      console.log(`${colors.yellow}Migration cancelled.${colors.reset}`);
-      process.exit(0);
-    }
+  console.log(summary);
+  const shouldProceed = await confirm({
+    message: 'Do you want to proceed with this exercise migration and PURGE old data?',
+    default: false,
   });
+  
+  if (!shouldProceed) {
+    console.log(`${colors.yellow}Migration cancelled.${colors.reset}`);
+    process.exit(0);
+  }
 
   logger.info('Starting exercise merge process...');
   
-  logger.setStatus('Populating relations...');
+  logger.info('Populating relations...');
   await db.execute(sql`
     INSERT INTO "exercise_relations_normalized" ("fromExerciseId", "toExerciseId", "relationType")
     SELECT nm1."normalizedExerciseId", nm2."normalizedExerciseId", er."relationType"
@@ -184,14 +179,14 @@ ${colors.bold}${colors.magenta}└───────────────�
     ON CONFLICT DO NOTHING
   `);
 
-  logger.setStatus('Migrating exercises...');
+  logger.info('Migrating exercises...');
   await db.execute(sql`
     INSERT INTO "exercises" ("name", "description")
     SELECT "name", "description" FROM "exercises_normalized"
     ON CONFLICT DO NOTHING
   `);
 
-  logger.setStatus('Updating final relations...');
+  logger.info('Updating final relations...');
   await db.execute(sql`
     INSERT INTO "exercise_relations" ("fromExerciseId", "toExerciseId", "relationType")
     SELECT e1."id", e2."id", ern."relationType"
@@ -203,7 +198,7 @@ ${colors.bold}${colors.magenta}└───────────────�
     ON CONFLICT DO NOTHING
   `);
 
-  logger.setStatus('Purging old exercises...');
+  logger.info('Purging old exercises...');
   try {
     await db.execute(sql`
       DELETE FROM "exercises" 
@@ -218,6 +213,5 @@ ${colors.bold}${colors.magenta}└───────────────�
     logger.warn(`Could not purge all old exercises: ${error.message}`);
   }
 
-  logger.clearStatus();
   logger.info('Exercise merge and purge complete.');
 };

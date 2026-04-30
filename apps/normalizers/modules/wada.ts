@@ -19,13 +19,13 @@ const WadaSchema = z.object({
 export const normalizeWada = async (verbose = false, purge = false) => {
   const logger = getLogger(verbose);
   
-  const model = await logger.interactive(() => promptModelSelection());
+  const model = await promptModelSelection();
 
-  logger.setStatus('Fetching WADA Prohibited List PDF...');
+  logger.info('Fetching WADA Prohibited List PDF...');
   const response = await fetch(PDF_URL);
   await Bun.write(PDF_PATH, await response.arrayBuffer());
 
-  logger.setStatus('Extracting text from PDF...');
+  logger.info('Extracting text from PDF...');
   await $`pdftotext -layout ${PDF_PATH} ${TXT_PATH}`.quiet();
   const text = await Bun.file(TXT_PATH).text();
 
@@ -40,7 +40,6 @@ export const normalizeWada = async (verbose = false, purge = false) => {
     if (section.toLowerCase().includes('table of contents')) continue;
     if (section.toLowerCase().includes('index of substances')) continue;
 
-    logger.setStatus(`Parsing WADA section ${i + 1}/${totalSections} with AI...`);
     logger.setProgress('wada', i + 1, totalSections, 'AI Extraction');
 
     const prompt = `Extract all prohibited substances from this page of the WADA Prohibited List. 
@@ -67,7 +66,6 @@ ${section}`;
     }
   }
 
-  logger.clearStatus();
   logger.setProgress('wada', 0, 0, '');
 
   if (allSubstances.length > 0) {

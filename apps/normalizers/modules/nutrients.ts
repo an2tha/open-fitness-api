@@ -37,10 +37,10 @@ export const normalizeNutrients = async (verbose = false) => {
   const logger = getLogger(verbose);
   logger.info('Starting nutrient normalization...');
 
-  const model = await logger.interactive(() => promptModelSelection());
+  const model = await promptModelSelection();
   logger.info(`Using model: ${model}`);
 
-  logger.setStatus('Fetching nutrients from database...');
+  logger.info('Fetching nutrients from database...');
   const nutrients = await db
     .select({
       id: nutrientsTable.id,
@@ -49,7 +49,6 @@ export const normalizeNutrients = async (verbose = false) => {
     })
     .from(nutrientsTable)
     .execute();
-  logger.clearStatus();
 
   if (nutrients.length === 0) {
     logger.warn('No nutrients found to normalize.');
@@ -58,7 +57,7 @@ export const normalizeNutrients = async (verbose = false) => {
 
   logger.info(`Found ${nutrients.length} total nutrient records.`);
 
-  logger.setStatus('Applying first-pass normalization (grouping duplicates)...');
+  logger.info('Applying first-pass normalization (grouping duplicates)...');
   
   const firstPassGroups = new Map<string, { 
     representativeName: string; 
@@ -88,7 +87,6 @@ export const normalizeNutrients = async (verbose = false) => {
 
   const uniqueGroups = Array.from(firstPassGroups.values());
   logger.info(`Reduced ${nutrients.length} records to ${uniqueGroups.length} unique groups for AI.`);
-  logger.clearStatus();
 
   const normalizedResults: NutrientNormalizationResult[] = [];
   const totalChunks = Math.ceil(uniqueGroups.length / CHUNK_SIZE);
@@ -99,7 +97,6 @@ export const normalizeNutrients = async (verbose = false) => {
     const chunk = uniqueGroups.slice(i, i + CHUNK_SIZE);
     const progress = Math.min(i + CHUNK_SIZE, uniqueGroups.length);
 
-    logger.setStatus(`Normalizing nutrients with AI (${progress}/${uniqueGroups.length})...`);
     logger.setProgress('normalize', currentChunk, totalChunks, 'AI Normalization');
 
     const nutrientList = chunk
@@ -154,7 +151,6 @@ ${nutrientList}`;
     }
   }
 
-  logger.clearStatus();
   logger.setProgress('normalize', 0, 0, '');
 
   logger.info(`Received ${normalizedResults.length} normalization entries from AI.`);
@@ -169,16 +165,15 @@ ${nutrientList}`;
   );
 
   if (uniqueNormalizedToInsert.length > 0) {
-    logger.setStatus(`Upserting ${uniqueNormalizedToInsert.length} normalized nutrients...`);
+    logger.info(`Upserting ${uniqueNormalizedToInsert.length} normalized nutrients...`);
     await db
       .insert(nutrientsNormalizedTable)
       .values(uniqueNormalizedToInsert)
       .onConflictDoNothing()
       .execute();
-    logger.clearStatus();
   }
 
-  logger.setStatus('Fetching all normalized nutrients...');
+  logger.info('Fetching all normalized nutrients...');
   const allNormalized = await db
     .select({
       id: nutrientsNormalizedTable.id,
@@ -187,13 +182,12 @@ ${nutrientList}`;
     })
     .from(nutrientsNormalizedTable)
     .execute();
-  logger.clearStatus();
 
   const normalizedMap = new Map(
     allNormalized.map((n) => [`${n.name}:${n.unit}`, n.id])
   );
 
-  logger.setStatus('Creating nutrient mappings...');
+  logger.info('Creating nutrient mappings...');
   const mappings = normalizedResults
     .flatMap((n) => {
       const normalizedId = normalizedMap.get(`${n.normalizedName}:${n.normalizedUnit}`);
@@ -215,7 +209,6 @@ ${nutrientList}`;
       await db.insert(nutrientsNormalizedMappingTable).values(batch).onConflictDoNothing().execute();
     }
   }
-  logger.clearStatus();
 
   logger.info('Nutrient normalization complete.');
 };
