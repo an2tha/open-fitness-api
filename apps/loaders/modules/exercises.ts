@@ -22,29 +22,20 @@ type ExerciseJson = {
   instructions: string[];
 };
 
-const downloadZip = (url: string, path: string, id: string) => {
+const downloadZip = async (url: string, path: string, id: string) => {
   const logger = getLogger();
-  return Bun.file(path).exists().then(exists => {
-    if (exists) return;
-    logger.setProgress(id, 0, 0, `downloading ${id}`);
-    return fetch(url).then(res => {
-      if (!res.ok) throw new Error(`Download failed: ${res.status}`);
-      const total = Number(res.headers.get('content-length') ?? 0);
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error('No body');
-      const writer = Bun.file(path).writer();
-      let downloaded = 0;
-      const pump = (): Promise<void> =>
-        reader.read().then(({ done, value }) => {
-          if (done) { writer.end(); return; }
-          writer.write(value);
-          downloaded += value.byteLength;
-          logger.setProgress(id, downloaded, total, `downloading ${id}`);
-          return pump();
-        });
-      return pump();
-    });
-  });
+  // Clear cache before downloading
+  await $`rm -f ${path}`.quiet();
+  logger.setProgress(id, 0, 0, `downloading ${id}`);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+  const total = Number(res.headers.get('content-length') ?? 0);
+  
+  // Use simpler download approach with Bun.write
+  const arrayBuffer = await res.arrayBuffer();
+  await Bun.write(path, arrayBuffer);
+  
+  logger.setProgress(id, total, total, `downloading ${id}`);
 };
 
 const insertExercises = async (id: string, json: ExerciseJson[]) => {

@@ -10,9 +10,9 @@ import { loadYuhonasExercises, loadWrkoutExercises } from './modules/exercises';
 import { loadNevoFoods } from './modules/nevo';
 import { loadDsldSupplements } from './modules/supplements';
 import { loadUsdaFoods } from './modules/usda';
-import { loadWadaList } from './modules/wada';
+import { loadSwissFoods } from './modules/swiss';
 import { flushLogger, getLogger } from './utils/logger';
-import { foodsTable, supplementsTable, prohibitedSubstancesTable } from '@repo/db/src/schema';
+import { foodsTable, supplementsTable } from '@repo/db/src/schema';
 
 const purgeFlag = flag({
   long: 'purge',
@@ -44,7 +44,7 @@ const safeRun = async (id: string, fn: () => Promise<any>) => {
     await fn();
   } catch (error: any) {
     logger.error(`[${id}] Task failed: ${error.message}`);
-    throw error;
+    process.exit(1);
   }
 };
 
@@ -62,8 +62,6 @@ const purgeSource = async (category: 'foods' | 'supplements' | 'exercises', sour
   } else if (category === 'supplements') {
     if (source === 'dsld') {
       await db.delete(supplementsTable).where(eq(supplementsTable.dataSource, 'dsld'));
-    } else if (source === 'wada') {
-      await db.delete(prohibitedSubstancesTable);
     }
   } else if (category === 'exercises') {
     // Exercises currently don't have a datasource column on the main table, 
@@ -108,7 +106,7 @@ const allCmd = command({
       safeRun('yuhonas', loadYuhonasExercises),
       safeRun('wrkout', loadWrkoutExercises),
       safeRun('dsld', loadDsldSupplements),
-      safeRun('wada', loadWadaList),
+      safeRun('swiss', loadSwissFoods),
     ]).catch(() => { process.exitCode = 1; });
   },
 });
@@ -116,7 +114,7 @@ const allCmd = command({
 const foodsCmd = command({
   name: 'foods',
   args: {
-    source: positional({ type: oneOf(['all', 'usda', 'cnf', 'bls', 'nevo', 'cofid', 'ciqual']), displayName: 'source' }),
+    source: positional({ type: oneOf(['all', 'usda', 'cnf', 'bls', 'nevo', 'cofid', 'ciqual', 'swiss']), displayName: 'source' }),
     purge: purgeFlag,
     verbose: verboseFlag,
   },
@@ -135,6 +133,7 @@ const foodsCmd = command({
       nevo: () => safeRun('nevo', loadNevoFoods),
       cofid: () => safeRun('cofid', loadCofid),
       ciqual: () => safeRun('ciqual', loadCiqual),
+      swiss: () => safeRun('swiss', loadSwissFoods),
     };
     if (source === 'all') {
       await Promise.all(Object.values(tasks).map(t => t())).catch(() => { process.exitCode = 1; });
@@ -174,7 +173,7 @@ const exercisesCmd = command({
 const supplementsCmd = command({
   name: 'supplements',
   args: {
-    source: positional({ type: oneOf(['all', 'dsld', 'wada']), displayName: 'source' }),
+    source: positional({ type: oneOf(['all', 'dsld']), displayName: 'source' }),
     purge: purgeFlag,
     verbose: verboseFlag,
   },
@@ -188,7 +187,6 @@ const supplementsCmd = command({
     }
     const tasks: Record<string, () => Promise<any>> = {
       dsld: () => safeRun('dsld', loadDsldSupplements),
-      wada: () => safeRun('wada', loadWadaList),
     };
     if (source === 'all') {
       await Promise.all(Object.values(tasks).map(t => t())).catch(() => { process.exitCode = 1; });
@@ -199,8 +197,11 @@ const supplementsCmd = command({
 });
 
 const app = subcommands({
-  name: 'ofdata-loader',
+  name: 'ofdata-normalizer',
   cmds: { all: allCmd, foods: foodsCmd, exercises: exercisesCmd, supplements: supplementsCmd },
 });
 
-run(binary(app), process.argv).catch(() => { process.exitCode = 1; }).finally(flushLogger);
+run(binary(app), process.argv).catch((err) => { 
+  console.error(err);
+  process.exitCode = 1; 
+}).finally(flushLogger);

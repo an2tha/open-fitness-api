@@ -12,11 +12,11 @@ const WadaSchema = z.object({
   substances: z.array(z.object({
     name: z.string(),
     category: z.string(),
-    notes: z.string().optional(),
+    notes: z.string(),
   })),
 });
 
-export const normalizeWada = async (verbose = false) => {
+export const normalizeWada = async (verbose = false, purge = false) => {
   const logger = getLogger(verbose);
   
   const model = await logger.interactive(() => promptModelSelection());
@@ -35,14 +35,17 @@ export const normalizeWada = async (verbose = false) => {
   const totalSections = sections.length;
   for (let i = 0; i < sections.length; i++) {
     const section = sections[i].trim();
-    if (section.length < 100) continue;
+    
+    if (section.length < 200) continue;
+    if (section.toLowerCase().includes('table of contents')) continue;
+    if (section.toLowerCase().includes('index of substances')) continue;
 
     logger.setStatus(`Parsing WADA section ${i + 1}/${totalSections} with AI...`);
     logger.setProgress('wada', i + 1, totalSections, 'AI Extraction');
 
     const prompt = `Extract all prohibited substances from this page of the WADA Prohibited List. 
 For each substance, identify its name and its category (e.g., "S1. Anabolic Agents", "S3. Beta-2 Agonists").
-If there are specific notes or examples for the substance, include them.
+If there are specific notes or examples for the substance, include them in the "notes" field. If there are no notes, return an empty string "".
 
 Page content:
 ${section}`;
@@ -53,7 +56,12 @@ ${section}`;
         temperature: 0,
         verbose 
       });
-      allSubstances.push(...substances);
+      
+      if (substances && substances.length > 0) {
+        allSubstances.push(...substances);
+      } else {
+        logger.debug(`No substances found on page ${i + 1}, skipping.`);
+      }
     } catch (e) {
       logger.error(`Error parsing section ${i + 1}: ${e}`);
     }
@@ -63,16 +71,19 @@ ${section}`;
   logger.setProgress('wada', 0, 0, '');
 
   if (allSubstances.length > 0) {
-    logger.info(`Extracted ${allSubstances.length} substances. Syncing with database...`);
-    
-    await db.delete(prohibitedSubstancesTable);
+    if (purge) {
+      logger.info('Purging existing WADA substances as requested...');
+      await db.delete(prohibitedSubstancesTable);
+    }
+
+    logger.info(`Extracted ${allSubstances.length} total substances. Syncing with database...`);
     
     const BATCH_SIZE = 100;
     for (let i = 0; i < allSubstances.length; i += BATCH_SIZE) {
       const batch = allSubstances.slice(i, i + BATCH_SIZE).map(s => ({
         name: s.name,
         category: s.category,
-        notes: s.notes || null,
+        notes: s.notes || "",
       }));
       await db.insert(prohibitedSubstancesTable).values(batch).execute();
     }

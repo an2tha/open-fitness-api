@@ -27,7 +27,6 @@ const colors = {
 export const mergeNutrients = async (verbose = false) => {
   const logger = getLogger(verbose);
   
-  // PRE-MIGRATION VISUALIZATION
   logger.setStatus('Preparing migration summary...');
   
   const [mappingCountResult] = await db.select({ value: count() }).from(nutrientsNormalizedMappingTable);
@@ -54,18 +53,19 @@ ${colors.bold}${colors.cyan}└────────────────�
 
   ${colors.bold}SAMPLE MAPPINGS:${colors.reset}
 ${sampleMappings.map(m => `  ${colors.dim}•${colors.reset} ${m.original.padEnd(25)} ${colors.cyan}→${colors.reset} ${colors.bold}${m.normalized}${colors.reset}`).join('\n')}
-  ${colors.dim}... and ${Math.max(0, mappingCountResult.value - 5)} more mappings.${colors.reset}
+  ${colors.dim}... and ${Math.max(0, Number(mappingCountResult.value) - 5)} more mappings.${colors.reset}
 
   ${colors.bold}OPERATIONS:${colors.reset}
   1. Populate intermediate ${colors.cyan}food_nutrients_normalized${colors.reset}
   2. Sync ${colors.cyan}nutrients_normalized${colors.reset} → ${colors.cyan}nutrients${colors.reset} (Main Table)
   3. Re-point ${colors.cyan}food_nutrients${colors.reset} to new normalized IDs
+  4. ${colors.yellow}PURGE${colors.reset} all old non-normalized nutrients
 `;
 
   await logger.interactive(async () => {
     console.log(summary);
     const shouldProceed = await confirm({
-      message: 'Do you want to proceed with this migration?',
+      message: 'Do you want to proceed with this migration and PURGE old data?',
       default: false,
     });
     
@@ -77,7 +77,6 @@ ${sampleMappings.map(m => `  ${colors.dim}•${colors.reset} ${m.original.padEnd
 
   logger.info('Starting nutrient merge process...');
 
-  // Step 1: Populate food_nutrients_normalized
   logger.setStatus('Populating food_nutrients_normalized...');
   try {
     await db.execute(sql`
@@ -92,7 +91,6 @@ ${sampleMappings.map(m => `  ${colors.dim}•${colors.reset} ${m.original.padEnd
     throw error;
   }
 
-  // Step 2: Migrate nutrients_normalized to nutrients
   logger.setStatus('Migrating metadata to main nutrients table...');
   try {
     await db.execute(sql`
@@ -105,7 +103,6 @@ ${sampleMappings.map(m => `  ${colors.dim}•${colors.reset} ${m.original.padEnd
     throw error;
   }
 
-  // Step 3: Migrate mappings to food_nutrients
   logger.setStatus('Updating final food_nutrients associations...');
   try {
     await db.execute(sql`
@@ -120,9 +117,24 @@ ${sampleMappings.map(m => `  ${colors.dim}•${colors.reset} ${m.original.padEnd
     logger.error(`Failed to update food_nutrients: ${error.message}`);
     throw error;
   }
-  logger.clearStatus();
 
-  logger.info('Nutrient merge complete.');
+  logger.setStatus('Purging old non-normalized nutrients...');
+  try {
+    await db.execute(sql`
+      DELETE FROM "nutrients" 
+      WHERE "id" NOT IN (
+        SELECT n."id" 
+        FROM "nutrients" n
+        JOIN "nutrients_normalized" nn ON n."name" = nn."name" AND n."unit" = nn."unit"
+      )
+    `);
+    logger.info('Successfully purged old nutrient data.');
+  } catch (error: any) {
+    logger.warn(`Could not purge all old nutrients: ${error.message}`);
+  }
+
+  logger.clearStatus();
+  logger.info('Nutrient merge and purge complete.');
 };
 
 export const mergeExercises = async (verbose = false) => {
@@ -144,12 +156,13 @@ ${colors.bold}${colors.magenta}└───────────────�
   1. Populate intermediate ${colors.cyan}exercise_relations_normalized${colors.reset}
   2. Sync ${colors.cyan}exercises_normalized${colors.reset} → ${colors.cyan}exercises${colors.reset} (Main Table)
   3. Re-point ${colors.cyan}exercise_relations${colors.reset} to new normalized IDs
+  4. ${colors.yellow}PURGE${colors.reset} all old non-normalized exercises
 `;
 
   await logger.interactive(async () => {
     console.log(summary);
     const shouldProceed = await confirm({
-      message: 'Do you want to proceed with this exercise migration?',
+      message: 'Do you want to proceed with this exercise migration and PURGE old data?',
       default: false,
     });
     
@@ -161,7 +174,6 @@ ${colors.bold}${colors.magenta}└───────────────�
 
   logger.info('Starting exercise merge process...');
   
-  // Steps implementation (keeping existing SQL)
   logger.setStatus('Populating relations...');
   await db.execute(sql`
     INSERT INTO "exercise_relations_normalized" ("fromExerciseId", "toExerciseId", "relationType")
@@ -191,6 +203,21 @@ ${colors.bold}${colors.magenta}└───────────────�
     ON CONFLICT DO NOTHING
   `);
 
+  logger.setStatus('Purging old exercises...');
+  try {
+    await db.execute(sql`
+      DELETE FROM "exercises" 
+      WHERE "id" NOT IN (
+        SELECT e."id" 
+        FROM "exercises" e
+        JOIN "exercises_normalized" en ON e."name" = en."name"
+      )
+    `);
+    logger.info('Successfully purged old exercise data.');
+  } catch (error: any) {
+    logger.warn(`Could not purge all old exercises: ${error.message}`);
+  }
+
   logger.clearStatus();
-  logger.info('Exercise merge complete.');
+  logger.info('Exercise merge and purge complete.');
 };

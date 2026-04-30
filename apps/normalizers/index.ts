@@ -43,10 +43,17 @@ const nutrientsCmd = command({
 const wadaCmd = command({
   name: 'wada',
   description: 'Parse and normalize WADA prohibited list using AI.',
-  args: { verbose: verboseFlag },
-  handler: async ({ verbose }) => {
+  args: { 
+    verbose: verboseFlag,
+    purge: flag({
+      long: 'purge',
+      short: 'p',
+      description: 'Clear the prohibited substances table before importing.',
+    }),
+  },
+  handler: async ({ verbose, purge }) => {
     try {
-      await normalizeWada(verbose);
+      await normalizeWada(verbose, purge);
     } catch (error: any) {
       getLogger(verbose).error(`WADA normalization failed: ${error.message}`);
       process.exitCode = 1;

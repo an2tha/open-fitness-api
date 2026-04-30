@@ -71,6 +71,20 @@
       "when": 1777576577546,
       "tag": "0009_thin_swordsman",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1777578773358,
+      "tag": "0010_supreme_mentallo",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1777579071576,
+      "tag": "0011_even_speed",
+      "breakpoints": true
     }
   ]
 }

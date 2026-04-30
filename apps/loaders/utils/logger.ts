@@ -55,7 +55,7 @@ class BufferedLogger {
   }
 
   info(...messages: unknown[]) {
-    this.log('info', messages);
+    if (this.verbose) this.log('info', messages);
   }
 
   debug(...messages: unknown[]) {
@@ -71,6 +71,13 @@ class BufferedLogger {
   }
 
   setProgress(id: string, current: number, total: number, label?: string) {
+    // Remove completed progress bars
+    if (current >= total && total > 0) {
+      this.tracks.delete(id);
+      this.render();
+      return;
+    }
+    
     const existing = this.tracks.get(id);
     this.tracks.set(id, {
       current,
@@ -114,7 +121,7 @@ class BufferedLogger {
     
     const progressLines = Array.from(this.tracks.values())
       .map(t => this.renderTrack(t, columns))
-      .join('\n');
+      .join('\n\n');
 
     const lines = this.logs.flatMap(line => line.split('\n'));
     const headerRows = this.tracks.size;
@@ -133,7 +140,7 @@ class BufferedLogger {
     const label = `${track.label.padEnd(20)} `;
     const width = Math.max(10, columns - label.length - suffix.length - 2);
     const filled = Math.round(width * ratio);
-    const bar = `${color('█'.repeat(filled), colors.green)}${color('░'.repeat(width - filled), colors.gray)}`;
+    const bar = `${color('*'.repeat(filled), colors.green)}${color('-'.repeat(width - filled), colors.gray)}`;
     const header = color(label, `${colors.bold}${colors.magenta}`);
     const meta = color(suffix, colors.cyan);
 

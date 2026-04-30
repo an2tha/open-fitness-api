@@ -3,10 +3,9 @@ import path from 'node:path';
 import { createOpenAI } from '@ai-sdk/openai';
 import { generateObject as sdkGenerateObject, streamObject as sdkStreamObject } from 'ai';
 import { z } from 'zod';
-import { select } from '@inquirer/prompts';
+import search from '@inquirer/search';
 import { getLogger } from '../utils/logger';
 
-// Load .env from workspace root
 config({ 
   path: path.resolve(import.meta.dirname, '../../../.env'),
   // @ts-ignore
@@ -44,7 +43,6 @@ export const getAvailableModels = async (): Promise<string[]> => {
   const baseUrl = process.env.AI_GATEWAY_URL || process.env.AI_BASE_URL;
   
   if (baseUrl) {
-    // Try Ollama tags
     try {
       const ollamaUrl = baseUrl.replace(/\/v1\/?$/, '');
       const response = await fetch(`${ollamaUrl}/api/tags`);
@@ -56,7 +54,6 @@ export const getAvailableModels = async (): Promise<string[]> => {
       }
     } catch (e) {}
 
-    // Try OpenAI models
     try {
       const response = await fetch(`${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}models`, {
         headers: {
@@ -82,11 +79,16 @@ export const promptModelSelection = async (): Promise<string> => {
 
   const models = await getAvailableModels();
 
-  // Use @inquirer/select for a much better experience in Bun/ESM
-  selectedModel = await select({
-    message: 'Select an AI model to use:',
-    choices: models.map(m => ({ name: m, value: m })),
-    default: models[0],
+  selectedModel = await search({
+    message: 'Search and select an AI model:',
+    source: async (input) => {
+      if (!input) {
+        return models.map(m => ({ name: m, value: m }));
+      }
+      return models
+        .filter(m => m.toLowerCase().includes(input.toLowerCase()))
+        .map(m => ({ name: m, value: m }));
+    },
   });
 
   return selectedModel;
@@ -118,7 +120,6 @@ export const generateNormalizedObject = async <T>(
     for await (const partialObject of partialObjectStream) {
       const currentText = JSON.stringify(partialObject);
       if (currentText.length > lastLoggedLength + 100) {
-        // Log the "tail" of the response to show progress instead of the beginning every time
         const windowSize = 150;
         const tail = currentText.length > windowSize 
           ? '...' + currentText.slice(-windowSize) 

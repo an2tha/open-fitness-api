@@ -1,6 +1,9 @@
 {
-  "name": "normalizers",
+  "name": "ofdata-normalizer",
   "module": "index.ts",
+  "bin": {
+    "ofdata-normalizer": "./dist/ofdata-normalizer"
+  },
   "type": "module",
   "devDependencies": {
     "@types/bun": "latest",
@@ -9,9 +12,13 @@
   "peerDependencies": {
     "typescript": "^5"
   },
+  "scripts": {
+    "build": "bun build index.ts --target=bun --outfile dist/normalize-bundle.js"
+  },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.55",
     "@inquirer/prompts": "^8.4.2",
+    "@inquirer/search": "^4.1.8",
     "@repo/db": "workspace:*",
     "ai": "^6.0.171",
     "cmd-ts": "^0.15.0",

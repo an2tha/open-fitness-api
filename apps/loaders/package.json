@@ -1,6 +1,9 @@
 {
-  "name": "loaders",
+  "name": "ofdata-loader",
   "module": "index.ts",
+  "bin": {
+    "ofdata-loader": "./dist/ofdata-loader"
+  },
   "devDependencies": {
     "@types/bun": "latest",
     "@types/inquirer": "^9.0.9",
@@ -10,12 +13,16 @@
     "typescript": "^5"
   },
   "type": "module",
+  "scripts": {
+    "build": "bun build index.ts --target=bun --outfile dist/loader-bundle.js"
+  },
   "dependencies": {
     "@repo/db": "workspace:*",
     "cmd-ts": "^0.15.0",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
     "inquirer": "^13.4.2",
-    "tslog": "^4.10.2"
+    "tslog": "^4.10.2",
+    "xlsx": "^0.18.5"
   }
 }

@@ -29,12 +29,8 @@ interface NutrientNormalizationResult {
   normalizedUnit: string;
 }
 
-const CHUNK_SIZE = 25;
+const CHUNK_SIZE = 75;
 
-/**
- * Normalizes a string by lowercasing and removing all whitespace.
- * Used for first-pass deduplication.
- */
 const slugify = (str: string) => str.toLowerCase().replace(/\s+/g, '');
 
 export const normalizeNutrients = async (verbose = false) => {
@@ -64,7 +60,6 @@ export const normalizeNutrients = async (verbose = false) => {
 
   logger.setStatus('Applying first-pass normalization (grouping duplicates)...');
   
-  // First-Pass: Group by slugified name and unit
   const firstPassGroups = new Map<string, { 
     representativeName: string; 
     representativeUnit: string; 
