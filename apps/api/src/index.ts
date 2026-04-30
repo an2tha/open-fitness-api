@@ -13,7 +13,7 @@ async function gracefulShutdown(signal: string) {
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-const server = serve({
+serve({
   fetch: app.fetch,
   port,
   hostname: '0.0.0.0',

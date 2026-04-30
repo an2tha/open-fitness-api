@@ -30,11 +30,11 @@ const downloadZip = async (url: string, path: string, id: string) => {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Download failed: ${res.status}`);
   const total = Number(res.headers.get('content-length') ?? 0);
-  
+
   // Use simpler download approach with Bun.write
   const arrayBuffer = await res.arrayBuffer();
   await Bun.write(path, arrayBuffer);
-  
+
   logger.setProgress(id, total, total, `downloading ${id}`);
 };
 
@@ -46,42 +46,70 @@ const insertExercises = async (id: string, json: ExerciseJson[]) => {
 
   const muscles = new Set<string>();
   const equipment = new Set<string>();
-  json.forEach(e => {
-    e.primaryMuscles.forEach(m => muscles.add(m));
-    e.secondaryMuscles.forEach(m => muscles.add(m));
+  json.forEach((e) => {
+    e.primaryMuscles.forEach((m) => muscles.add(m));
+    e.secondaryMuscles.forEach((m) => muscles.add(m));
     if (e.equipment) equipment.add(e.equipment);
   });
 
   logger.info(`[${id}] syncing muscles and equipment...`);
-  await db.insert(musclesTable).values(Array.from(muscles).map(name => ({ name }))).onConflictDoNothing();
-  await db.insert(equipmentTable).values(Array.from(equipment).map(name => ({ name }))).onConflictDoNothing();
+  await db
+    .insert(musclesTable)
+    .values(Array.from(muscles).map((name) => ({ name })))
+    .onConflictDoNothing();
+  await db
+    .insert(equipmentTable)
+    .values(Array.from(equipment).map((name) => ({ name })))
+    .onConflictDoNothing();
 
   const dbMuscles = await db.select().from(musclesTable);
   const dbEquipment = await db.select().from(equipmentTable);
-  const muscleMap = new Map(dbMuscles.map(m => [m.name, m.id]));
-  const equipMap = new Map(dbEquipment.map(e => [e.name, e.id]));
+  const muscleMap = new Map(dbMuscles.map((m) => [m.name, m.id]));
+  const equipMap = new Map(dbEquipment.map((e) => [e.name, e.id]));
 
   logger.setProgress(id, 0, json.length, `loading ${id}`);
   for (let i = 0; i < json.length; i++) {
     const e = json[i]!;
-    const [inserted] = await db.insert(exercisesTable).values({
-      name: e.name,
-      description: e.instructions.join('\n').slice(0, 2056),
-    }).onConflictDoNothing().returning({ id: exercisesTable.id });
+    const [inserted] = await db
+      .insert(exercisesTable)
+      .values({
+        name: e.name,
+        description: e.instructions.join('\n').slice(0, 2056),
+      })
+      .onConflictDoNothing()
+      .returning({ id: exercisesTable.id });
 
     if (inserted) {
       const links: any[] = [];
-      e.primaryMuscles.forEach(m => {
+      e.primaryMuscles.forEach((m) => {
         const mid = muscleMap.get(m);
-        if (mid) links.push(db.insert(exerciseMusclesTable).values({ exerciseId: inserted.id, muscleId: mid, role: 'primary' }).onConflictDoNothing());
+        if (mid)
+          links.push(
+            db
+              .insert(exerciseMusclesTable)
+              .values({ exerciseId: inserted.id, muscleId: mid, role: 'primary' })
+              .onConflictDoNothing(),
+          );
       });
-      e.secondaryMuscles.forEach(m => {
+      e.secondaryMuscles.forEach((m) => {
         const mid = muscleMap.get(m);
-        if (mid) links.push(db.insert(exerciseMusclesTable).values({ exerciseId: inserted.id, muscleId: mid, role: 'secondary' }).onConflictDoNothing());
+        if (mid)
+          links.push(
+            db
+              .insert(exerciseMusclesTable)
+              .values({ exerciseId: inserted.id, muscleId: mid, role: 'secondary' })
+              .onConflictDoNothing(),
+          );
       });
       if (e.equipment) {
         const eid = equipMap.get(e.equipment);
-        if (eid) links.push(db.insert(exerciseEquipmentTable).values({ exerciseId: inserted.id, equipmentId: eid }).onConflictDoNothing());
+        if (eid)
+          links.push(
+            db
+              .insert(exerciseEquipmentTable)
+              .values({ exerciseId: inserted.id, equipmentId: eid })
+              .onConflictDoNothing(),
+          );
       }
       await Promise.all(links);
     }
@@ -100,7 +128,7 @@ export const loadYuhonasExercises = async () => {
 
   await downloadZip(URL, ZIP_PATH, ID);
   const proc = Bun.spawn(['unzip', '-p', ZIP_PATH, JSON_PATH]);
-  const json = await new Response(proc.stdout).json() as ExerciseJson[];
+  const json = (await new Response(proc.stdout).json()) as ExerciseJson[];
   return insertExercises(ID, json);
 };
 

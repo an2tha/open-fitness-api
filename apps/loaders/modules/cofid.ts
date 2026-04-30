@@ -6,13 +6,19 @@ import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/bun-sql';
 import { insertFoodChunk } from '../utils/foods';
 import { getLogger } from '../utils/logger';
-import { insertFoodNutrientLinks, syncNutrientMeta, type FoodNutrientLink, type NutrientMeta } from '../utils/nutrients';
+import {
+  insertFoodNutrientLinks,
+  syncNutrientMeta,
+  type FoodNutrientLink,
+  type NutrientMeta,
+} from '../utils/nutrients';
 
 config({ path: new URL('../../../.env', import.meta.url).pathname, quiet: true });
 
 const DATABASE_URL = process.env.DATABASE_URL;
 const DATA_SOURCE = 'cofid';
-const COFID_URL = 'https://assets.publishing.service.gov.uk/media/60538b91e90e07527df82ae4/McCance_Widdowsons_Composition_of_Foods_Integrated_Dataset_2021..xlsx';
+const COFID_URL =
+  'https://assets.publishing.service.gov.uk/media/60538b91e90e07527df82ae4/McCance_Widdowsons_Composition_of_Foods_Integrated_Dataset_2021..xlsx';
 const ZIP_PATH = '/tmp/cofid.xlsx';
 const EXTRACT_PATH = '/tmp/cofid-xlsx';
 
@@ -35,11 +41,15 @@ type FoodData = NewFood & {
 const attr = (attrs: string, name: string) => attrs.match(new RegExp(`${name}="([^"]*)"`))?.[1];
 const columnName = (cellRef: string) => cellRef.match(/^[A-Z]+/)?.[0] ?? '';
 
-const xmlDecode = (value: string) => value
-  .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
-  .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
-  .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
-  .replace(/&#x([\da-fA-F]+);/g, (_, code) => String.fromCharCode(Number.parseInt(code, 16)));
+const xmlDecode = (value: string) =>
+  value
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    .replace(/&#x([\da-fA-F]+);/g, (_, code) => String.fromCharCode(Number.parseInt(code, 16)));
 
 const numberValue = (value: string | undefined) => {
   if (!value || value === '' || value === '-' || value === 'N' || value.toLowerCase() === 'tr') return 0;
@@ -54,38 +64,45 @@ const decimal = (value: string | number | undefined) => {
 
 const downloadExcel = () => {
   const logger = getLogger();
-  return Bun.file(ZIP_PATH).exists().then(exists => {
-    if (exists) return;
-    logger.setProgress(DATA_SOURCE, 0, 0, 'downloading CoFID');
-    return fetch(COFID_URL).then(response => {
-      if (!response.ok) throw new Error(`CoFID download failed: ${response.status}`);
-      const total = Number(response.headers.get('content-length') ?? 0);
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('No body');
-      const writer = Bun.file(ZIP_PATH).writer();
-      let downloaded = 0;
-      const pump = (): Promise<void> =>
-        reader.read().then(({ done, value }) => {
-          if (done) { writer.end(); return; }
-          writer.write(value);
-          downloaded += value.byteLength;
-          logger.setProgress(DATA_SOURCE, downloaded, total, 'downloading CoFID');
-          return pump();
-        });
-      return pump();
+  return Bun.file(ZIP_PATH)
+    .exists()
+    .then((exists) => {
+      if (exists) return;
+      logger.setProgress(DATA_SOURCE, 0, 0, 'downloading CoFID');
+      return fetch(COFID_URL).then((response) => {
+        if (!response.ok) throw new Error(`CoFID download failed: ${response.status}`);
+        const total = Number(response.headers.get('content-length') ?? 0);
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error('No body');
+        const writer = Bun.file(ZIP_PATH).writer();
+        let downloaded = 0;
+        const pump = (): Promise<void> =>
+          reader.read().then(({ done, value }) => {
+            if (done) {
+              writer.end();
+              return;
+            }
+            writer.write(value);
+            downloaded += value.byteLength;
+            logger.setProgress(DATA_SOURCE, downloaded, total, 'downloading CoFID');
+            return pump();
+          });
+        return pump();
+      });
     });
-  });
 };
 
 const unzip = () => {
   const logger = getLogger();
-  return Bun.file(paths.proximates).exists().then(async exists => {
-    if (exists) return;
-    logger.setProgress(DATA_SOURCE, 0, 1, 'extracting CoFID');
-    await $`mkdir -p ${EXTRACT_PATH}`.quiet();
-    await $`unzip -oq ${ZIP_PATH} -d ${EXTRACT_PATH}`.quiet();
-    logger.setProgress(DATA_SOURCE, 1, 1, 'extracting CoFID');
-  });
+  return Bun.file(paths.proximates)
+    .exists()
+    .then(async (exists) => {
+      if (exists) return;
+      logger.setProgress(DATA_SOURCE, 0, 1, 'extracting CoFID');
+      await $`mkdir -p ${EXTRACT_PATH}`.quiet();
+      await $`unzip -oq ${ZIP_PATH} -d ${EXTRACT_PATH}`.quiet();
+      logger.setProgress(DATA_SOURCE, 1, 1, 'extracting CoFID');
+    });
 };
 
 const parseSharedStrings = (xml: string) => {
@@ -116,7 +133,7 @@ const parseRows = (xml: string, sharedStrings: string[], onRow: (row: Map<string
       const val = cellMatch[2] ?? '';
       const col = columnName(attr(attrs, 'r') ?? '');
       const type = attr(attrs, 't');
-      const finalVal = type === 's' ? sharedStrings[Number(val)] ?? '' : xmlDecode(val);
+      const finalVal = type === 's' ? (sharedStrings[Number(val)] ?? '') : xmlDecode(val);
       if (finalVal !== '') row.set(col, finalVal);
     }
     onRow(row, rowIndex++);
@@ -146,7 +163,7 @@ export const loadCofid = async () => {
     const code = row.get('A');
     if (code) {
       const rawNutrients: Record<string, string> = {};
-      nutrientCols.forEach(c => {
+      nutrientCols.forEach((c) => {
         const val = row.get(c.column);
         if (val) rawNutrients[`${c.name}|${c.unit}`] = val;
       });
@@ -183,8 +200,8 @@ export const loadCofid = async () => {
     }
   });
 
-  const uniqueNutrients = Array.from(new Set(Array.from(foods.values()).flatMap(f => Object.keys(f.rawNutrients))));
-  const meta: NutrientMeta[] = uniqueNutrients.map(n => {
+  const uniqueNutrients = Array.from(new Set(Array.from(foods.values()).flatMap((f) => Object.keys(f.rawNutrients))));
+  const meta: NutrientMeta[] = uniqueNutrients.map((n) => {
     const [name, unit] = n.split('|');
     return { name: name!, unit: unit! };
   });
@@ -200,10 +217,10 @@ export const loadCofid = async () => {
   for (let i = 0; i < allFoods.length; i += chunkSize) {
     const chunk = allFoods.slice(i, i + chunkSize);
     const dbFoods = await insertFoodChunk(sqlClient, chunk);
-    const idMap = new Map(dbFoods.map(f => [f.externalId, f.id]));
+    const idMap = new Map(dbFoods.map((f) => [f.externalId, f.id]));
 
     const links: FoodNutrientLink[] = [];
-    chunk.forEach(food => {
+    chunk.forEach((food) => {
       const foodId = idMap.get(food.externalId!);
       if (!foodId) return;
 

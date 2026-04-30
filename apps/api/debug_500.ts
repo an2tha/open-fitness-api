@@ -1,15 +1,14 @@
-
 import { db } from './src/lib/db';
 import { sql } from 'drizzle-orm';
 
 async function main() {
-  const searchQuery = "milk:*";
-  const q = "milk";
+  const searchQuery = 'milk:*';
+  const q = 'milk';
   const limit = 5;
   const offset = 0;
-  const nutrientName = "Calcium";
+  const nutrientName = 'Calcium';
   const minNutrientValue = 100;
-  
+
   const conditions: any[] = [];
   conditions.push(sql`EXISTS (
     SELECT 1 FROM food_nutrients fn 
@@ -18,11 +17,11 @@ async function main() {
     AND n.name ILIKE ${'%' + nutrientName + '%'}
     AND CAST(NULLIF(fn.value, '') AS NUMERIC) >= ${minNutrientValue}
   )`);
-  
+
   const whereClause = sql`AND ${sql.join(conditions, sql` AND `)}`;
 
   try {
-    const foodsResult = await db.execute(sql`
+    await db.execute(sql`
       WITH matches AS (
         (
           SELECT *, ts_rank(search_vector, to_tsquery('english', ${searchQuery})) as rank
@@ -43,9 +42,9 @@ async function main() {
       LIMIT ${limit}
       OFFSET ${offset}
     `);
-    console.log("Success!");
+    console.log('Success!');
   } catch (e) {
-    console.error("FAIL:", e);
+    console.error('FAIL:', e);
   }
 }
 

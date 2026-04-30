@@ -6,10 +6,10 @@ import { mergeNutrients, mergeExercises } from './modules/merge';
 import { config } from 'dotenv';
 import path from 'node:path';
 
-config({ 
+config({
   path: path.resolve(import.meta.dirname, '../../.env'),
-  // @ts-ignore
-  quiet: true 
+  // @ts-expect-error - quiet is not in DotenvConfigOptions but supported by some versions/wrappers
+  quiet: true,
 });
 
 if (!process.env.AI_NORMALIZE) {
@@ -43,7 +43,7 @@ const nutrientsCmd = command({
 const wadaCmd = command({
   name: 'wada',
   description: 'Parse and normalize WADA prohibited list using AI.',
-  args: { 
+  args: {
     verbose: verboseFlag,
     purge: flag({
       long: 'purge',

@@ -1,15 +1,10 @@
 import { db } from '@repo/db';
-import { 
-  nutrientsTable, 
-  nutrientsNormalizedTable, 
-  nutrientsNormalizedMappingTable, 
-  foodNutrientsTable, 
-  foodNutrientsNormalizedTable,
+import {
+  nutrientsNormalizedTable,
+  nutrientsNormalizedMappingTable,
+  foodNutrientsTable,
   exercisesTable,
-  exercisesNormalizedTable,
   exercisesNormalizedMappingTable,
-  exerciseRelationsTable,
-  exerciseRelationsNormalizedTable
 } from '@repo/db';
 import { sql, count } from 'drizzle-orm';
 import { getLogger } from '../utils/logger';
@@ -26,13 +21,13 @@ const colors = {
 
 export const mergeNutrients = async (verbose = false) => {
   const logger = getLogger(verbose);
-  
+
   logger.info('Preparing migration summary...');
-  
+
   const [mappingCountResult] = await db.select({ value: count() }).from(nutrientsNormalizedMappingTable);
   const [foodNutrientCountResult] = await db.select({ value: count() }).from(foodNutrientsTable);
   const [normalizedCountResult] = await db.select({ value: count() }).from(nutrientsNormalizedTable);
-  
+
   const sampleMappings = await db
     .select({
       original: nutrientsNormalizedMappingTable.originalName,
@@ -52,7 +47,7 @@ ${colors.bold}${colors.cyan}└────────────────�
   • ${colors.yellow}${foodNutrientCountResult.value}${colors.reset} food_nutrient records to be updated
 
   ${colors.bold}SAMPLE MAPPINGS:${colors.reset}
-${sampleMappings.map(m => `  ${colors.dim}•${colors.reset} ${m.original.padEnd(25)} ${colors.cyan}→${colors.reset} ${colors.bold}${m.normalized}${colors.reset}`).join('\n')}
+${sampleMappings.map((m) => `  ${colors.dim}•${colors.reset} ${m.original.padEnd(25)} ${colors.cyan}→${colors.reset} ${colors.bold}${m.normalized}${colors.reset}`).join('\n')}
   ${colors.dim}... and ${Math.max(0, Number(mappingCountResult.value) - 5)} more mappings.${colors.reset}
 
   ${colors.bold}OPERATIONS:${colors.reset}
@@ -67,7 +62,7 @@ ${sampleMappings.map(m => `  ${colors.dim}•${colors.reset} ${m.original.padEnd
     message: 'Do you want to proceed with this migration and PURGE old data?',
     default: false,
   });
-  
+
   if (!shouldProceed) {
     console.log(`${colors.yellow}Migration cancelled.${colors.reset}`);
     process.exit(0);
@@ -136,7 +131,7 @@ ${sampleMappings.map(m => `  ${colors.dim}•${colors.reset} ${m.original.padEnd
 
 export const mergeExercises = async (verbose = false) => {
   const logger = getLogger(verbose);
-  
+
   logger.info('Preparing exercise migration summary...');
   const [mappingCount] = await db.select({ value: count() }).from(exercisesNormalizedMappingTable);
   const [exerciseCount] = await db.select({ value: count() }).from(exercisesTable);
@@ -161,14 +156,14 @@ ${colors.bold}${colors.magenta}└───────────────�
     message: 'Do you want to proceed with this exercise migration and PURGE old data?',
     default: false,
   });
-  
+
   if (!shouldProceed) {
     console.log(`${colors.yellow}Migration cancelled.${colors.reset}`);
     process.exit(0);
   }
 
   logger.info('Starting exercise merge process...');
-  
+
   logger.info('Populating relations...');
   await db.execute(sql`
     INSERT INTO "exercise_relations_normalized" ("fromExerciseId", "toExerciseId", "relationType")

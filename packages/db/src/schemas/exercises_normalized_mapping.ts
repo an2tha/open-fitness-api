@@ -11,5 +11,5 @@ export const exercisesNormalizedMappingTable = pgTable(
   },
   (t) => ({
     originalIdx: uniqueIndex('exercises_normalized_mapping_original_idx').on(t.originalExerciseId),
-  })
+  }),
 );

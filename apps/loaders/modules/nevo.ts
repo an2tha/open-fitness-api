@@ -40,8 +40,6 @@ const primaryCodes = {
   sodium: 'NA',
 };
 
-const primaryCodeSet = new Set(Object.values(primaryCodes));
-
 type NutrientColumn = {
   index: number;
   code: string;
@@ -49,15 +47,16 @@ type NutrientColumn = {
   unit: string;
 };
 
-const htmlDecode = (value: string) => value
-  .replace(/&nbsp;/g, ' ')
-  .replace(/&lt;/g, '<')
-  .replace(/&gt;/g, '>')
-  .replace(/&amp;/g, '&')
-  .replace(/&quot;/g, '"')
-  .replace(/&#39;|&apos;/g, "'")
-  .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
-  .replace(/&#x([\da-fA-F]+);/g, (_, code) => String.fromCharCode(Number.parseInt(code, 16)));
+const htmlDecode = (value: string) =>
+  value
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    .replace(/&#x([\da-fA-F]+);/g, (_, code) => String.fromCharCode(Number.parseInt(code, 16)));
 
 const stripTags = (value: string) => htmlDecode(value.replace(/<[^>]*>/g, '').trim());
 
@@ -87,27 +86,32 @@ const splitCodeUnit = (id: string) => {
 
 const downloadFile = (url: string, path: string, label: string, headers: Record<string, string> = {}) => {
   const logger = getLogger();
-  return Bun.file(path).exists().then(exists => {
-    if (exists) return;
-    logger.setProgress(DATA_SOURCE, 0, 0, label);
-    return fetch(url, { headers }).then(response => {
-      if (!response.ok) throw new Error(`${label} failed: ${response.status}`);
-      const total = Number(response.headers.get('content-length') ?? 0);
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('No body');
-      const writer = Bun.file(path).writer();
-      let downloaded = 0;
-      const pump = (): Promise<void> =>
-        reader.read().then(({ done, value }) => {
-          if (done) { writer.end(); return; }
-          writer.write(value);
-          downloaded += value.byteLength;
-          logger.setProgress(DATA_SOURCE, downloaded, total, label);
-          return pump();
-        });
-      return pump();
+  return Bun.file(path)
+    .exists()
+    .then((exists) => {
+      if (exists) return;
+      logger.setProgress(DATA_SOURCE, 0, 0, label);
+      return fetch(url, { headers }).then((response) => {
+        if (!response.ok) throw new Error(`${label} failed: ${response.status}`);
+        const total = Number(response.headers.get('content-length') ?? 0);
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error('No body');
+        const writer = Bun.file(path).writer();
+        let downloaded = 0;
+        const pump = (): Promise<void> =>
+          reader.read().then(({ done, value }) => {
+            if (done) {
+              writer.end();
+              return;
+            }
+            writer.write(value);
+            downloaded += value.byteLength;
+            logger.setProgress(DATA_SOURCE, downloaded, total, label);
+            return pump();
+          });
+        return pump();
+      });
     });
-  });
 };
 
 const parseHeaders = async () => {
@@ -148,12 +152,12 @@ const parseNevoFoods = async () => {
   logger.setProgress(DATA_SOURCE, 0, total, 'parsing NEVO');
 
   while ((match = rowRegex.exec(html))) {
-    const cells = Array.from(match[0].matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/g)).map(m => stripTags(match![1] ?? ''));
+    const cells = Array.from(match[0].matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/g)).map((m) => stripTags(m[1] ?? ''));
     const externalId = text(cells[1]);
     const name = text(cells[3]) ?? text(cells[2]);
     if (externalId && name) {
       const rawNutrients: Record<string, string> = {};
-      headers.nutrients.forEach(n => {
+      headers.nutrients.forEach((n) => {
         const val = cells[n.index];
         if (val && val !== '-' && val !== '0') rawNutrients[`${n.name}|${n.unit}`] = val;
       });
@@ -190,14 +194,17 @@ export const loadNevoFoods = async () => {
   if (!DATABASE_URL) throw new Error('DATABASE_URL is required');
   const logger = getLogger();
   const sqlClient = new Bun.SQL(DATABASE_URL);
-  
+
   await downloadFile(HOME_URL, HOME_PATH, 'downloading NEVO headers', { 'User-Agent': requestHeaders['User-Agent'] });
   await downloadFile(DATA_URL, DATA_PATH, 'downloading NEVO data', requestHeaders);
 
   const { foods, nutrients } = await parseNevoFoods();
-  
+
   logger.info('syncing nutrient metadata...');
-  const nutrientIdMap = await syncNutrientMeta(sqlClient, nutrients.map(n => ({ name: n.name, unit: n.unit })));
+  const nutrientIdMap = await syncNutrientMeta(
+    sqlClient,
+    nutrients.map((n) => ({ name: n.name, unit: n.unit })),
+  );
 
   const db = drizzle(sqlClient);
   await db.delete(foodsTable).where(eq(foodsTable.dataSource, DATA_SOURCE));
@@ -206,10 +213,10 @@ export const loadNevoFoods = async () => {
   for (let i = 0; i < foods.length; i += chunkSize) {
     const chunk = foods.slice(i, i + chunkSize);
     const dbFoods = await insertFoodChunk(sqlClient, chunk);
-    const idMap = new Map(dbFoods.map(f => [f.externalId, f.id]));
+    const idMap = new Map(dbFoods.map((f) => [f.externalId, f.id]));
 
     const links: FoodNutrientLink[] = [];
-    chunk.forEach(food => {
+    chunk.forEach((food) => {
       const foodId = idMap.get(food.externalId!);
       if (!foodId) return;
 

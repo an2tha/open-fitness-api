@@ -21,34 +21,24 @@ const literal = (value: unknown) => {
 export const syncNutrientMeta = async (sql: SqlClient, items: NutrientMeta[]) => {
   if (!items.length) return new Map<string, number>();
 
-  const unique = Array.from(
-    new Map(items.map(i => [`${i.name}|${i.unit}`, i])).values()
-  );
+  const unique = Array.from(new Map(items.map((i) => [`${i.name}|${i.unit}`, i])).values());
 
-  const values = unique
-    .map(i => `(${literal(i.name)}, ${literal(i.unit)})`)
-    .join(',');
+  const values = unique.map((i) => `(${literal(i.name)}, ${literal(i.unit)})`).join(',');
 
   // Insert missing and get all IDs
-  await sql.unsafe(
-    `insert into nutrients (name, unit) values ${values} on conflict do nothing`
-  );
+  await sql.unsafe(`insert into nutrients (name, unit) values ${values} on conflict do nothing`);
 
-  const rows = await sql.unsafe<{ id: number; name: string; unit: string }>(
-    `select id, name, unit from nutrients`
-  );
+  const rows = await sql.unsafe<{ id: number; name: string; unit: string }>(`select id, name, unit from nutrients`);
 
-  return new Map(rows.map(r => [`${r.name}|${r.unit}`, r.id]));
+  return new Map(rows.map((r) => [`${r.name}|${r.unit}`, r.id]));
 };
 
 export const insertFoodNutrientLinks = async (sql: SqlClient, links: FoodNutrientLink[]) => {
   if (!links.length) return;
 
-  const values = links
-    .map(l => `(${l.foodId}, ${l.nutrientId}, ${literal(l.value)})`)
-    .join(',');
+  const values = links.map((l) => `(${l.foodId}, ${l.nutrientId}, ${literal(l.value)})`).join(',');
 
   return sql.unsafe(
-    `insert into food_nutrients ("foodId", "nutrientId", value) values ${values} on conflict do nothing`
+    `insert into food_nutrients ("foodId", "nutrientId", value) values ${values} on conflict do nothing`,
   );
 };

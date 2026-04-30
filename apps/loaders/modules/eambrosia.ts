@@ -24,27 +24,32 @@ type EambrosiaItem = {
 
 const downloadEambrosia = () => {
   const logger = getLogger();
-  return Bun.file(DATA_PATH).exists().then(exists => {
-    if (exists) return;
-    logger.setProgress(DATA_SOURCE, 0, 0, 'downloading eAmbrosia');
-    return fetch(EAMBROSIA_URL).then(response => {
-      if (!response.ok) throw new Error(`eAmbrosia download failed: ${response.status}`);
-      const total = Number(response.headers.get('content-length') ?? 0);
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('No body');
-      const writer = Bun.file(DATA_PATH).writer();
-      let downloaded = 0;
-      const pump = (): Promise<void> =>
-        reader.read().then(({ done, value }) => {
-          if (done) { writer.end(); return; }
-          writer.write(value);
-          downloaded += value.byteLength;
-          logger.setProgress(DATA_SOURCE, downloaded, total, 'downloading eAmbrosia');
-          return pump();
-        });
-      return pump();
+  return Bun.file(DATA_PATH)
+    .exists()
+    .then((exists) => {
+      if (exists) return;
+      logger.setProgress(DATA_SOURCE, 0, 0, 'downloading eAmbrosia');
+      return fetch(EAMBROSIA_URL).then((response) => {
+        if (!response.ok) throw new Error(`eAmbrosia download failed: ${response.status}`);
+        const total = Number(response.headers.get('content-length') ?? 0);
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error('No body');
+        const writer = Bun.file(DATA_PATH).writer();
+        let downloaded = 0;
+        const pump = (): Promise<void> =>
+          reader.read().then(({ done, value }) => {
+            if (done) {
+              writer.end();
+              return;
+            }
+            writer.write(value);
+            downloaded += value.byteLength;
+            logger.setProgress(DATA_SOURCE, downloaded, total, 'downloading eAmbrosia');
+            return pump();
+          });
+        return pump();
+      });
     });
-  });
 };
 
 const parseEambrosia = async () => {
@@ -52,7 +57,7 @@ const parseEambrosia = async () => {
   const raw = await Bun.file(DATA_PATH).text();
   const items = JSON.parse(raw) as EambrosiaItem[];
   logger.info(`parsed ${items.length} eAmbrosia records`);
-  return items.map((item, index) => ({
+  return items.map((item, _index) => ({
     externalId: item.giIdentifier,
     dataSource: DATA_SOURCE,
     name: item.protectedNames?.[0] || 'Unknown',

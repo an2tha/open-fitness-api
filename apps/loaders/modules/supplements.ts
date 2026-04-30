@@ -43,7 +43,7 @@ const downloadZip = () => {
 
   return Bun.file(ZIP_PATH)
     .exists()
-    .then(async exists => {
+    .then(async (exists) => {
       if (exists) {
         const zipFile = Bun.file(ZIP_PATH);
         if (zipFile.size > 500000000) return;
@@ -65,8 +65,8 @@ const downloadZip = () => {
       logger.info(`Starting download from ${DSLD_URL} (this may be very slow)...`);
       logger.setProgress(DATA_SOURCE, 0, 0, 'downloading DSLD');
       return fetch(DSLD_URL, {
-        headers: { 'User-Agent': 'Mozilla/5.0' }
-      }).then(response => {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+      }).then((response) => {
         if (!response.ok) throw new Error(`DSLD download failed: ${response.status}`);
         const total = Number(response.headers.get('content-length') ?? 0);
         const reader = response.body?.getReader();
@@ -75,7 +75,10 @@ const downloadZip = () => {
         let downloaded = 0;
         const pump = (): Promise<void> =>
           reader.read().then(({ done, value }) => {
-            if (done) { writer.end(); return; }
+            if (done) {
+              writer.end();
+              return;
+            }
             writer.write(value);
             downloaded += value.byteLength;
             logger.setProgress(DATA_SOURCE, downloaded, total, 'downloading DSLD');
@@ -90,9 +93,9 @@ const unzip = () => {
   const logger = getLogger();
   return Bun.file(`${EXTRACT_PATH}/DSLD-full-database-JSON/1000.json`)
     .exists()
-    .then(async exists => {
+    .then(async (exists) => {
       if (exists) return;
-      
+
       const zipFile = Bun.file(ZIP_PATH);
       if (!(await zipFile.exists()) || zipFile.size < 500000000) {
         await $`rm -f ${ZIP_PATH}`.quiet();
@@ -101,8 +104,8 @@ const unzip = () => {
 
       logger.setProgress(DATA_SOURCE, 0, 1, 'extracting DSLD');
       await $`mkdir -p ${EXTRACT_PATH}`.quiet();
-      
-      return $`unzip -oq ${ZIP_PATH} -d ${EXTRACT_PATH}`.quiet().catch(async err => {
+
+      return $`unzip -oq ${ZIP_PATH} -d ${EXTRACT_PATH}`.quiet().catch(async (err) => {
         logger.error(`Unzip failed (code ${err.exitCode}). Deleting corrupted ZIP...`);
         await $`rm -f ${ZIP_PATH}`.quiet();
         throw new Error('Unzip failed. Corrupted ZIP deleted. Please try again.');
@@ -129,7 +132,7 @@ export const loadDsldSupplements = async () => {
 
   const ingredientCache = new Map<string, number>();
   const dbIngredients = await db.select().from(ingredientsTable);
-  dbIngredients.forEach(i => ingredientCache.set(i.name, i.id));
+  dbIngredients.forEach((i) => ingredientCache.set(i.name, i.id));
 
   let processed = 0;
   const chunkSize = 1000;
@@ -155,7 +158,7 @@ export const loadDsldSupplements = async () => {
           servingSize: String(p.servingSizes?.[0]?.minQuantity ?? '1'),
           servingUnit: p.servingSizes?.[0]?.unit?.slice(0, 2056) ?? 'serving',
         });
-      } catch (err) {
+      } catch (_err) {
         // Skip corrupted JSON
       }
     }
@@ -163,31 +166,37 @@ export const loadDsldSupplements = async () => {
     if (!supplements.length) continue;
 
     // Insert supplements
-    const inserted = await db.insert(supplementsTable).values(supplements).returning({ id: supplementsTable.id, externalId: supplementsTable.externalId });
-    const supIdMap = new Map(inserted.map(s => [s.externalId, s.id]));
+    const inserted = await db
+      .insert(supplementsTable)
+      .values(supplements)
+      .returning({ id: supplementsTable.id, externalId: supplementsTable.externalId });
+    const supIdMap = new Map(inserted.map((s) => [s.externalId, s.id]));
 
     // Track new ingredients
     const newIngredients = new Set<string>();
-    products.forEach(p => {
+    products.forEach((p) => {
       const allIngs = [...(p.ingredientRows ?? []), ...(p.otheringredients?.ingredients ?? [])];
-      allIngs.forEach(ing => {
+      allIngs.forEach((ing) => {
         if (!ingredientCache.has(ing.name)) newIngredients.add(ing.name);
       });
     });
 
     if (newIngredients.size > 0) {
-      await db.insert(ingredientsTable).values(Array.from(newIngredients).map(name => ({ name }))).onConflictDoNothing();
+      await db
+        .insert(ingredientsTable)
+        .values(Array.from(newIngredients).map((name) => ({ name })))
+        .onConflictDoNothing();
       const refreshed = await db.select().from(ingredientsTable);
-      refreshed.forEach(ing => ingredientCache.set(ing.name, ing.id));
+      refreshed.forEach((ing) => ingredientCache.set(ing.name, ing.id));
     }
 
     // Prepare links
-    products.forEach(p => {
+    products.forEach((p) => {
       const supId = supIdMap.get(p.upcSku || String(p.id));
       if (!supId) return;
 
       const allIngs = [...(p.ingredientRows ?? []), ...(p.otheringredients?.ingredients ?? [])];
-      allIngs.forEach(ing => {
+      allIngs.forEach((ing) => {
         const ingId = ingredientCache.get(ing.name);
         if (ingId) {
           const qty = ing.quantity?.[0];

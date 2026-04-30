@@ -38,7 +38,7 @@ routes.openapi(
       timestamp: new Date().toISOString(),
       uptime: Math.floor(process.uptime()),
     });
-  }
+  },
 );
 
 routes.openapi(
@@ -64,7 +64,7 @@ routes.openapi(
       return c.json({ status: 'error', message: 'Database connection failed' }, 503);
     }
     return c.json({ status: 'ok', message: 'Database connection healthy' });
-  }
+  },
 );
 
 if (env.SWAGGER_ENABLED === 'true') {

@@ -19,13 +19,16 @@ app.use('*', errorMiddleware);
 app.route(env.API_PREFIX, routes);
 
 app.notFound((c) => {
-  return c.json({
-    success: false,
-    error: {
-      code: 'NOT_FOUND',
-      message: 'Resource not found',
+  return c.json(
+    {
+      success: false,
+      error: {
+        code: 'NOT_FOUND',
+        message: 'Resource not found',
+      },
     },
-  }, 404);
+    404,
+  );
 });
 
 export default app;

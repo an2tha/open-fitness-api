@@ -51,6 +51,6 @@ export class RateLimitError extends AppError {
 }
 
 export function fromZodError(error: z.ZodError): ValidationError {
-  const message = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+  const message = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
   return new ValidationError(message);
 }

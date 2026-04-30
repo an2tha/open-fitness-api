@@ -1,12 +1,10 @@
-
 import { db } from './src/lib/db';
-import { foodsTable } from '@repo/db/src/schema';
 import { sql } from 'drizzle-orm';
 
 async function testFinalOutput() {
-  const q = "apple";
-  const searchQuery = "apple:*";
-  
+  const q = 'apple';
+  const searchQuery = 'apple:*';
+
   try {
     const results = await db.execute(sql`
       WITH matches AS (
@@ -16,15 +14,15 @@ async function testFinalOutput() {
       )
       SELECT DISTINCT ON (id) * FROM matches ORDER BY id, rank DESC LIMIT 1
     `);
-    
+
     const food = results[0];
-    const { search_vector, searchVector, rank, ...rest } = food as any;
-    console.log("Cleaned food keys:", Object.keys(rest));
-    console.log("Has calories:", 'calories' in rest);
-    console.log("Has dataSource:", 'dataSource' in rest);
-    console.log("Cleaned food sample:", JSON.stringify(rest, null, 2));
+    const { search_vector: _sv, searchVector: _sv2, rank: _r, ...rest } = food as any;
+    console.log('Cleaned food keys:', Object.keys(rest));
+    console.log('Has calories:', 'calories' in rest);
+    console.log('Has dataSource:', 'dataSource' in rest);
+    console.log('Cleaned food sample:', JSON.stringify(rest, null, 2));
   } catch (e) {
-    console.error("Test failed:", e);
+    console.error('Test failed:', e);
   }
 }
 

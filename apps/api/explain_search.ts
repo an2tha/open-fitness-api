@@ -1,11 +1,13 @@
-
 import { db } from './src/lib/db';
-import { foodsTable } from '@repo/db/src/schema';
-import { sql, or, desc } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 
 async function explainSearch(q: string) {
-  const searchQuery = q.trim().split(/\s+/).map(term => `${term}:*`).join(' & ');
-  
+  const searchQuery = q
+    .trim()
+    .split(/\s+/)
+    .map((term) => `${term}:*`)
+    .join(' & ');
+
   try {
     const plan = await db.execute(sql`
       EXPLAIN ANALYZE
@@ -16,12 +18,12 @@ async function explainSearch(q: string) {
     `);
     console.log(plan);
   } catch (e) {
-    console.error("Explain failed:", e);
+    console.error('Explain failed:', e);
   }
 }
 
 async function main() {
-  await explainSearch("apple");
+  await explainSearch('apple');
 }
 
 main();

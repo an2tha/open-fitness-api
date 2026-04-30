@@ -77,7 +77,7 @@ class BufferedLogger {
       this.render();
       return;
     }
-    
+
     const existing = this.tracks.get(id);
     this.tracks.set(id, {
       current,
@@ -118,15 +118,15 @@ class BufferedLogger {
 
     const columns = process.stdout.columns || 80;
     const rows = process.stdout.rows || 24;
-    
+
     const progressLines = Array.from(this.tracks.values())
-      .map(t => this.renderTrack(t, columns))
+      .map((t) => this.renderTrack(t, columns))
       .join('\n\n');
 
-    const lines = this.logs.flatMap(line => line.split('\n'));
+    const lines = this.logs.flatMap((line) => line.split('\n'));
     const headerRows = this.tracks.size;
     const visibleLogs = lines.slice(Math.max(0, lines.length - rows + headerRows + 1));
-    const body = visibleLogs.map(line => line.slice(0, columns)).join('\n');
+    const body = visibleLogs.map((line) => line.slice(0, columns)).join('\n');
 
     process.stdout.write(`\x1b[H\x1b[2J${progressLines}\n${body}`);
   }

@@ -4,10 +4,10 @@ import { defineConfig } from 'drizzle-kit';
 import { stat } from 'fs/promises';
 
 const ENV_PATH = '../../.env';
-stat(ENV_PATH).catch(e => {
+stat(ENV_PATH).catch((e) => {
   throw Error(`Error loading .env, ${e}`);
 });
-config({ path: ENV_PATH })
+config({ path: ENV_PATH });
 
 export default defineConfig({
   out: './drizzle',

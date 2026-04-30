@@ -9,7 +9,7 @@
     "allowJs": true,
     "types": ["bun"],
     "paths": {
-      "@repo/db": ["./packages/db/index.ts"],
+      "@repo/db": ["./packages/db/index.ts"]
     },
 
     // Bundler mode

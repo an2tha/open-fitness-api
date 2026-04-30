@@ -6,10 +6,8 @@ import { RateLimitError } from '../lib/error';
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
 
 function getRateLimitKey(c: Context): string {
-  const ip = c.req.header('x-forwarded-for') || 
-             c.req.header('x-real-ip') || 
-             c.req.header('cf-connecting-ip') || 
-             'unknown';
+  const ip =
+    c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || c.req.header('cf-connecting-ip') || 'unknown';
   return `${ip}:${c.req.path}`;
 }
 
@@ -31,13 +29,12 @@ export async function rateLimitMiddleware(c: Context, next: Next) {
   }
 
   const key = getRateLimitKey(c);
-  const windowMs = env.RATE_LIMIT_WINDOW === '1m' ? 60000 : 
-                   env.RATE_LIMIT_WINDOW === '1h' ? 3600000 : 60000;
+  const windowMs = env.RATE_LIMIT_WINDOW === '1m' ? 60000 : env.RATE_LIMIT_WINDOW === '1h' ? 3600000 : 60000;
   const maxRequests = parseInt(env.RATE_LIMIT_MAX);
-  
+
   const now = Date.now();
   const record = rateLimitStore.get(key);
-  
+
   if (!record || record.resetTime < now) {
     rateLimitStore.set(key, {
       count: 1,
@@ -50,19 +47,19 @@ export async function rateLimitMiddleware(c: Context, next: Next) {
       throw new RateLimitError(`Rate limit exceeded. Retry after ${retryAfter}s`);
     }
   }
-  
+
   await next();
 }
 
 export async function securityHeaders(c: Context, next: Next) {
   await next();
-  
+
   c.res.headers.set('X-Request-ID', c.get('requestId'));
   c.res.headers.set('X-Content-Type-Options', 'nosniff');
   c.res.headers.set('X-Frame-Options', 'DENY');
   c.res.headers.set('X-XSS-Protection', '1; mode=block');
   c.res.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-  
+
   if (env.NODE_ENV === 'production') {
     c.res.headers.set('Content-Security-Policy', "default-src 'self'");
     c.res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -71,7 +68,7 @@ export async function securityHeaders(c: Context, next: Next) {
 
 export async function corsMiddleware(c: Context, next: Next) {
   const origin = c.req.header('origin');
-  
+
   if (c.req.method === 'OPTIONS') {
     return c.text('', 204, {
       'Access-Control-Allow-Origin': env.CORS_ORIGIN === '*' ? '*' : origin || '',
@@ -80,9 +77,9 @@ export async function corsMiddleware(c: Context, next: Next) {
       'Access-Control-Max-Age': '86400',
     });
   }
-  
+
   await next();
-  
+
   c.res.headers.set('Access-Control-Allow-Origin', env.CORS_ORIGIN === '*' ? '*' : origin || '');
   c.res.headers.set('Access-Control-Allow-Methods', env.CORS_METHODS);
   c.res.headers.set('Access-Control-Allow-Headers', env.CORS_HEADERS);

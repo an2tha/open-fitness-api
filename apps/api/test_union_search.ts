@@ -1,12 +1,14 @@
-
 import { db } from './src/lib/db';
-import { foodsTable } from '@repo/db/src/schema';
-import { sql, or, desc, union } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 
 async function testUnionSearch(q: string) {
-  const searchQuery = q.trim().split(/\s+/).map(term => `${term}:*`).join(' & ');
+  const searchQuery = q
+    .trim()
+    .split(/\s+/)
+    .map((term) => `${term}:*`)
+    .join(' & ');
   const start = performance.now();
-  
+
   try {
     // Drizzle's union is a bit tricky with complex SQL, so we'll use a raw query for the test
     const results = await db.execute(sql`
@@ -31,17 +33,17 @@ async function testUnionSearch(q: string) {
       ORDER BY id, rank DESC
       LIMIT 20
     `);
-    
+
     const end = performance.now();
     console.log(`Union Search for "${q}" took ${Math.round(end - start)}ms, found ${results.length} results.`);
   } catch (e) {
-    console.error("Search failed:", e);
+    console.error('Search failed:', e);
   }
 }
 
 async function main() {
-  await testUnionSearch("apple");
-  await testUnionSearch("banana");
+  await testUnionSearch('apple');
+  await testUnionSearch('banana');
 }
 
 main();

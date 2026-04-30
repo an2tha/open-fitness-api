@@ -64,7 +64,7 @@ const purgeSource = async (category: 'foods' | 'supplements' | 'exercises', sour
       await db.delete(supplementsTable).where(eq(supplementsTable.dataSource, 'dsld'));
     }
   } else if (category === 'exercises') {
-    // Exercises currently don't have a datasource column on the main table, 
+    // Exercises currently don't have a datasource column on the main table,
     // we'll truncate for now as they are small.
     const sql = new Bun.SQL(process.env.DATABASE_URL!);
     await sql`truncate table exercises, muscles, equipment, exercise_muscles, exercise_equipment, movement_patterns, exercise_movement_patterns restart identity cascade`;
@@ -94,7 +94,7 @@ const allCmd = command({
   name: 'all',
   description: 'Run every data loader.',
   args: { purge: purgeFlag, verbose: verboseFlag },
-  handler: async ({ purge, verbose }) => {
+  handler: async ({ purge, verbose: _verbose }) => {
     if (purge && (await confirmPurge('Purge ENTIRE database'))) await purgeCategory('all');
     await Promise.all([
       safeRun('cnf', loadCnfFoods),
@@ -107,18 +107,23 @@ const allCmd = command({
       safeRun('wrkout', loadWrkoutExercises),
       safeRun('dsld', loadDsldSupplements),
       safeRun('swiss', loadSwissFoods),
-    ]).catch(() => { process.exitCode = 1; });
+    ]).catch(() => {
+      process.exitCode = 1;
+    });
   },
 });
 
 const foodsCmd = command({
   name: 'foods',
   args: {
-    source: positional({ type: oneOf(['all', 'usda', 'cnf', 'bls', 'nevo', 'cofid', 'ciqual', 'swiss']), displayName: 'source' }),
+    source: positional({
+      type: oneOf(['all', 'usda', 'cnf', 'bls', 'nevo', 'cofid', 'ciqual', 'swiss']),
+      displayName: 'source',
+    }),
     purge: purgeFlag,
     verbose: verboseFlag,
   },
-  handler: async ({ source, purge, verbose }) => {
+  handler: async ({ source, purge, verbose: _verbose }) => {
     if (purge) {
       if (source === 'all') {
         if (await confirmPurge('Purge all food data')) await purgeCategory('foods');
@@ -136,7 +141,9 @@ const foodsCmd = command({
       swiss: () => safeRun('swiss', loadSwissFoods),
     };
     if (source === 'all') {
-      await Promise.all(Object.values(tasks).map(t => t())).catch(() => { process.exitCode = 1; });
+      await Promise.all(Object.values(tasks).map((t) => t())).catch(() => {
+        process.exitCode = 1;
+      });
     } else {
       await tasks[source]?.();
     }
@@ -150,7 +157,7 @@ const exercisesCmd = command({
     purge: purgeFlag,
     verbose: verboseFlag,
   },
-  handler: async ({ source, purge, verbose }) => {
+  handler: async ({ source, purge, verbose: _verbose }) => {
     if (purge) {
       if (source === 'all') {
         if (await confirmPurge('Purge all exercise data')) await purgeCategory('exercises');
@@ -163,7 +170,9 @@ const exercisesCmd = command({
       wrkout: () => safeRun('wrkout', loadWrkoutExercises),
     };
     if (source === 'all') {
-      await Promise.all(Object.values(tasks).map(t => t())).catch(() => { process.exitCode = 1; });
+      await Promise.all(Object.values(tasks).map((t) => t())).catch(() => {
+        process.exitCode = 1;
+      });
     } else {
       await tasks[source]?.();
     }
@@ -177,7 +186,7 @@ const supplementsCmd = command({
     purge: purgeFlag,
     verbose: verboseFlag,
   },
-  handler: async ({ source, purge, verbose }) => {
+  handler: async ({ source, purge, verbose: _verbose }) => {
     if (purge) {
       if (source === 'all') {
         if (await confirmPurge('Purge all supplement data')) await purgeCategory('supplements');
@@ -189,7 +198,9 @@ const supplementsCmd = command({
       dsld: () => safeRun('dsld', loadDsldSupplements),
     };
     if (source === 'all') {
-      await Promise.all(Object.values(tasks).map(t => t())).catch(() => { process.exitCode = 1; });
+      await Promise.all(Object.values(tasks).map((t) => t())).catch(() => {
+        process.exitCode = 1;
+      });
     } else {
       await tasks[source]?.();
     }
@@ -201,7 +212,9 @@ const app = subcommands({
   cmds: { all: allCmd, foods: foodsCmd, exercises: exercisesCmd, supplements: supplementsCmd },
 });
 
-run(binary(app), process.argv).catch((err) => { 
-  console.error(err);
-  process.exitCode = 1; 
-}).finally(flushLogger);
+run(binary(app), process.argv)
+  .catch((err) => {
+    console.error(err);
+    process.exitCode = 1;
+  })
+  .finally(flushLogger);

@@ -6,10 +6,10 @@ import { z } from 'zod';
 import search from '@inquirer/search';
 import { getLogger } from '../utils/logger';
 
-config({ 
+config({
   path: path.resolve(import.meta.dirname, '../../../.env'),
-  // @ts-ignore
-  quiet: true 
+  // @ts-expect-error - quiet is not in DotenvConfigOptions but supported by some versions/wrappers
+  quiet: true,
 });
 
 let selectedModel: string | null = null;
@@ -18,9 +18,7 @@ const getProvider = () => {
   let baseURL = process.env.AI_GATEWAY_URL || process.env.AI_BASE_URL || 'https://api.openai.com/v1';
   const apiKey = process.env.AI_API_KEY;
 
-  if (!baseURL.includes('api.openai.com') && 
-      !baseURL.includes('gateway.ai.vercel.com') &&
-      !baseURL.includes('/v1')) {
+  if (!baseURL.includes('api.openai.com') && !baseURL.includes('gateway.ai.vercel.com') && !baseURL.includes('/v1')) {
     baseURL = baseURL.endsWith('/') ? `${baseURL}v1` : `${baseURL}/v1`;
   }
 
@@ -41,34 +39,38 @@ const DEFAULT_MODELS = [
 
 export const getAvailableModels = async (): Promise<string[]> => {
   const baseUrl = process.env.AI_GATEWAY_URL || process.env.AI_BASE_URL;
-  
+
   if (baseUrl) {
     try {
       const ollamaUrl = baseUrl.replace(/\/v1\/?$/, '');
       const response = await fetch(`${ollamaUrl}/api/tags`);
       if (response.ok) {
-        const data = await response.json() as { models: { name: string, model?: string }[] };
+        const data = (await response.json()) as { models: { name: string; model?: string }[] };
         if (data.models && data.models.length > 0) {
-          return data.models.map(m => m.model || m.name);
+          return data.models.map((m) => m.model || m.name);
         }
       }
-    } catch (e) {}
+    } catch (_e) {
+      // ignore
+    }
 
     try {
       const response = await fetch(`${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}models`, {
         headers: {
-          'Authorization': `Bearer ${process.env.AI_API_KEY || ''}`,
-        }
+          Authorization: `Bearer ${process.env.AI_API_KEY || ''}`,
+        },
       });
       if (response.ok) {
-        const data = await response.json() as { data: { id: string }[] };
+        const data = (await response.json()) as { data: { id: string }[] };
         if (data.data && data.data.length > 0) {
-          return data.data.map(m => m.id);
+          return data.data.map((m) => m.id);
         }
       }
-    } catch (e) {}
+    } catch (_e) {
+      // ignore
+    }
   }
-  
+
   return DEFAULT_MODELS;
 };
 
@@ -83,11 +85,9 @@ export const promptModelSelection = async (): Promise<string> => {
     message: 'Search and select an AI model:',
     source: async (input) => {
       if (!input) {
-        return models.map(m => ({ name: m, value: m }));
+        return models.map((m) => ({ name: m, value: m }));
       }
-      return models
-        .filter(m => m.toLowerCase().includes(input.toLowerCase()))
-        .map(m => ({ name: m, value: m }));
+      return models.filter((m) => m.toLowerCase().includes(input.toLowerCase())).map((m) => ({ name: m, value: m }));
     },
   });
 
@@ -116,20 +116,18 @@ export const generateNormalizedObject = async <T>(
     });
 
     let lastLoggedLength = 0;
-    
+
     for await (const partialObject of partialObjectStream) {
       const currentText = JSON.stringify(partialObject);
       if (currentText.length > lastLoggedLength + 100) {
         const windowSize = 150;
-        const tail = currentText.length > windowSize 
-          ? '...' + currentText.slice(-windowSize) 
-          : currentText;
-          
+        const tail = currentText.length > windowSize ? '...' + currentText.slice(-windowSize) : currentText;
+
         logger.debug(`AI Streaming: ${tail}`);
         lastLoggedLength = currentText.length;
       }
     }
-    
+
     return await object;
   }
 

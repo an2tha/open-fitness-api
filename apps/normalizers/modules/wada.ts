@@ -9,16 +9,18 @@ const PDF_PATH = '/tmp/wada_2024.pdf';
 const TXT_PATH = '/tmp/wada_2024.txt';
 
 const WadaSchema = z.object({
-  substances: z.array(z.object({
-    name: z.string(),
-    category: z.string(),
-    notes: z.string(),
-  })),
+  substances: z.array(
+    z.object({
+      name: z.string(),
+      category: z.string(),
+      notes: z.string(),
+    }),
+  ),
 });
 
 export const normalizeWada = async (verbose = false, purge = false) => {
   const logger = getLogger(verbose);
-  
+
   const model = await promptModelSelection();
 
   logger.info('Fetching WADA Prohibited List PDF...');
@@ -29,13 +31,13 @@ export const normalizeWada = async (verbose = false, purge = false) => {
   await $`pdftotext -layout ${PDF_PATH} ${TXT_PATH}`.quiet();
   const text = await Bun.file(TXT_PATH).text();
 
-  const sections = text.split(/\f/); 
+  const sections = text.split(/\f/);
   const allSubstances: any[] = [];
 
   const totalSections = sections.length;
   for (let i = 0; i < sections.length; i++) {
     const section = sections[i].trim();
-    
+
     if (section.length < 200) continue;
     if (section.toLowerCase().includes('table of contents')) continue;
     if (section.toLowerCase().includes('index of substances')) continue;
@@ -50,12 +52,12 @@ Page content:
 ${section}`;
 
     try {
-      const { substances } = await generateNormalizedObject(prompt, WadaSchema, { 
-        model, 
+      const { substances } = await generateNormalizedObject(prompt, WadaSchema, {
+        model,
         temperature: 0,
-        verbose 
+        verbose,
       });
-      
+
       if (substances && substances.length > 0) {
         allSubstances.push(...substances);
       } else {
@@ -75,17 +77,17 @@ ${section}`;
     }
 
     logger.info(`Extracted ${allSubstances.length} total substances. Syncing with database...`);
-    
+
     const BATCH_SIZE = 100;
     for (let i = 0; i < allSubstances.length; i += BATCH_SIZE) {
-      const batch = allSubstances.slice(i, i + BATCH_SIZE).map(s => ({
+      const batch = allSubstances.slice(i, i + BATCH_SIZE).map((s) => ({
         name: s.name,
         category: s.category,
-        notes: s.notes || "",
+        notes: s.notes || '',
       }));
       await db.insert(prohibitedSubstancesTable).values(batch).execute();
     }
-    
+
     logger.info('WADA list successfully updated in database.');
   } else {
     logger.warn('No substances extracted from the WADA list.');

@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { db } from '@repo/db';
 import { exercisesTable } from '@repo/db/src/schema';
-import { eq, sql, or, desc } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { NotFoundError } from '../lib/error';
 import { toFriendlyCase } from '../lib/utils';
 
@@ -41,7 +41,11 @@ const exercises = new OpenAPIHono();
 
 exercises.openapi(searchExercisesRoute, async (c) => {
   const { q, limit, offset } = c.req.valid('query');
-  const searchQuery = q.trim().split(/\s+/).map(term => `${term}:*`).join(' & ');
+  const searchQuery = q
+    .trim()
+    .split(/\s+/)
+    .map((term) => `${term}:*`)
+    .join(' & ');
 
   const result = await db.execute(sql`
     WITH matches AS (
@@ -65,13 +69,15 @@ exercises.openapi(searchExercisesRoute, async (c) => {
     OFFSET ${offset}
   `);
 
-  return c.json(result.map((e: any) => {
-    const { search_vector, searchVector, rank, ...rest } = e;
-    return {
-      ...rest,
-      name: toFriendlyCase(rest.name)
-    };
-  }));
+  return c.json(
+    result.map((e: any) => {
+      const { search_vector: _sv, searchVector: _sv2, rank: _r, ...rest } = e;
+      return {
+        ...rest,
+        name: toFriendlyCase(rest.name),
+      };
+    }),
+  );
 });
 
 const listExercisesRoute = createRoute({
@@ -101,13 +107,15 @@ const listExercisesRoute = createRoute({
 exercises.openapi(listExercisesRoute, async (c) => {
   const { limit, offset } = c.req.valid('query');
   const result = await db.select().from(exercisesTable).limit(limit).offset(offset);
-  return c.json(result.map((e: any) => {
-    const { search_vector, searchVector, ...rest } = e;
-    return {
-      ...rest,
-      name: toFriendlyCase(rest.name)
-    };
-  }));
+  return c.json(
+    result.map((e: any) => {
+      const { search_vector: _sv, searchVector: _sv2, ...rest } = e;
+      return {
+        ...rest,
+        name: toFriendlyCase(rest.name),
+      };
+    }),
+  );
 });
 
 const getExerciseRoute = createRoute({
@@ -142,10 +150,10 @@ exercises.openapi(getExerciseRoute, async (c) => {
   if (result.length === 0) {
     throw new NotFoundError('Exercise');
   }
-  const { search_vector, searchVector, ...rest } = result[0] as any;
+  const { search_vector: _sv, searchVector: _sv2, ...rest } = result[0] as any;
   return c.json({
     ...rest,
-    name: toFriendlyCase(rest.name)
+    name: toFriendlyCase(rest.name),
   });
 });
 

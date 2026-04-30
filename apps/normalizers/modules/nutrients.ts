@@ -1,25 +1,17 @@
 import { db } from '@repo/db';
-import {
-  nutrientsTable,
-  nutrientsNormalizedTable,
-  nutrientsNormalizedMappingTable,
-} from '@repo/db';
+import { nutrientsTable, nutrientsNormalizedTable, nutrientsNormalizedMappingTable } from '@repo/db';
 import { generateNormalizedObject, promptModelSelection } from './ai';
 import { getLogger } from '../utils/logger';
 import { z } from 'zod';
 
-interface Nutrient {
-  id: number;
-  name: string;
-  unit: string;
-}
-
 const NutrientMappingSchema = z.object({
-  results: z.array(z.object({
-    originalName: z.string(),
-    normalizedName: z.string(),
-    normalizedUnit: z.string(),
-  })),
+  results: z.array(
+    z.object({
+      originalName: z.string(),
+      normalizedName: z.string(),
+      normalizedUnit: z.string(),
+    }),
+  ),
 });
 
 interface NutrientNormalizationResult {
@@ -58,19 +50,22 @@ export const normalizeNutrients = async (verbose = false) => {
   logger.info(`Found ${nutrients.length} total nutrient records.`);
 
   logger.info('Applying first-pass normalization (grouping duplicates)...');
-  
-  const firstPassGroups = new Map<string, { 
-    representativeName: string; 
-    representativeUnit: string; 
-    members: { originalName: string, originalUnit: string, ids: number[] }[] 
-  }>();
+
+  const firstPassGroups = new Map<
+    string,
+    {
+      representativeName: string;
+      representativeUnit: string;
+      members: { originalName: string; originalUnit: string; ids: number[] }[];
+    }
+  >();
 
   for (const n of nutrients) {
     const key = `${slugify(n.name)}:${slugify(n.unit)}`;
     const group = firstPassGroups.get(key);
-    
+
     if (group) {
-      const existingMember = group.members.find(m => m.originalName === n.name && m.originalUnit === n.unit);
+      const existingMember = group.members.find((m) => m.originalName === n.name && m.originalUnit === n.unit);
       if (existingMember) {
         existingMember.ids.push(n.id);
       } else {
@@ -80,7 +75,7 @@ export const normalizeNutrients = async (verbose = false) => {
       firstPassGroups.set(key, {
         representativeName: n.name,
         representativeUnit: n.unit,
-        members: [{ originalName: n.name, originalUnit: n.unit, ids: [n.id] }]
+        members: [{ originalName: n.name, originalUnit: n.unit, ids: [n.id] }],
       });
     }
   }
@@ -95,7 +90,6 @@ export const normalizeNutrients = async (verbose = false) => {
   for (let i = 0; i < uniqueGroups.length; i += CHUNK_SIZE) {
     currentChunk++;
     const chunk = uniqueGroups.slice(i, i + CHUNK_SIZE);
-    const progress = Math.min(i + CHUNK_SIZE, uniqueGroups.length);
 
     logger.setProgress('normalize', currentChunk, totalChunks, 'AI Normalization');
 
@@ -123,16 +117,17 @@ Input nutrients:
 ${nutrientList}`;
 
     try {
-      const { results } = await generateNormalizedObject(prompt, NutrientMappingSchema, { 
-        model, 
+      const { results } = await generateNormalizedObject(prompt, NutrientMappingSchema, {
+        model,
         temperature: 0.1,
-        verbose
+        verbose,
       });
 
       for (const normalized of results) {
         const matchedGroup = chunk.find(
-          (g) => g.representativeName === normalized.originalName || 
-                 slugify(g.representativeName) === slugify(normalized.originalName)
+          (g) =>
+            g.representativeName === normalized.originalName ||
+            slugify(g.representativeName) === slugify(normalized.originalName),
         );
 
         if (matchedGroup) {
@@ -161,16 +156,17 @@ ${nutrientList}`;
   }
 
   const uniqueNormalizedToInsert = Array.from(
-    new Map(normalizedResults.map((n) => [`${n.normalizedName}:${n.normalizedUnit}`, { name: n.normalizedName, unit: n.normalizedUnit }])).values()
+    new Map(
+      normalizedResults.map((n) => [
+        `${n.normalizedName}:${n.normalizedUnit}`,
+        { name: n.normalizedName, unit: n.normalizedUnit },
+      ]),
+    ).values(),
   );
 
   if (uniqueNormalizedToInsert.length > 0) {
     logger.info(`Upserting ${uniqueNormalizedToInsert.length} normalized nutrients...`);
-    await db
-      .insert(nutrientsNormalizedTable)
-      .values(uniqueNormalizedToInsert)
-      .onConflictDoNothing()
-      .execute();
+    await db.insert(nutrientsNormalizedTable).values(uniqueNormalizedToInsert).onConflictDoNothing().execute();
   }
 
   logger.info('Fetching all normalized nutrients...');
@@ -183,24 +179,21 @@ ${nutrientList}`;
     .from(nutrientsNormalizedTable)
     .execute();
 
-  const normalizedMap = new Map(
-    allNormalized.map((n) => [`${n.name}:${n.unit}`, n.id])
-  );
+  const normalizedMap = new Map(allNormalized.map((n) => [`${n.name}:${n.unit}`, n.id]));
 
   logger.info('Creating nutrient mappings...');
-  const mappings = normalizedResults
-    .flatMap((n) => {
-      const normalizedId = normalizedMap.get(`${n.normalizedName}:${n.normalizedUnit}`);
-      if (normalizedId) {
-        return n.originalIds.map(originalId => ({
-          originalNutrientId: originalId,
-          normalizedNutrientId: normalizedId,
-          originalName: n.originalName,
-          normalizedName: n.normalizedName,
-        }));
-      }
-      return [];
-    });
+  const mappings = normalizedResults.flatMap((n) => {
+    const normalizedId = normalizedMap.get(`${n.normalizedName}:${n.normalizedUnit}`);
+    if (normalizedId) {
+      return n.originalIds.map((originalId) => ({
+        originalNutrientId: originalId,
+        normalizedNutrientId: normalizedId,
+        originalName: n.originalName,
+        normalizedName: n.normalizedName,
+      }));
+    }
+    return [];
+  });
 
   if (mappings.length > 0) {
     const MAPPING_BATCH_SIZE = 1000;

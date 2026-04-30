@@ -15,5 +15,5 @@ export const exerciseRelationsNormalizedTable = pgTable(
   },
   (t) => ({
     pk: primaryKey({ columns: [t.fromExerciseId, t.toExerciseId, t.relationType] }),
-  })
+  }),
 );

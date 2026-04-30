@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { db } from '@repo/db';
 import { foodsTable, foodNutrientsTable, nutrientsTable } from '@repo/db/src/schema';
-import { eq, sql, desc, inArray, or } from 'drizzle-orm';
+import { eq, sql, inArray } from 'drizzle-orm';
 import { NotFoundError } from '../lib/error';
 import { toFriendlyCase } from '../lib/utils';
 
@@ -29,7 +29,10 @@ const foodSchema = z.object({
   fiber: z.string().optional().openapi({ description: 'Fiber per serving' }),
   sugar: z.string().optional().openapi({ description: 'Sugar per serving' }),
   sodium: z.string().optional().openapi({ description: 'Sodium per serving' }),
-  other_nutrients: z.array(nutrientInfoSchema).optional().openapi({ description: 'Other detailed nutrients for this food' }),
+  other_nutrients: z
+    .array(nutrientInfoSchema)
+    .optional()
+    .openapi({ description: 'Other detailed nutrients for this food' }),
 });
 
 const foods = new OpenAPIHono();
@@ -89,10 +92,8 @@ const listFoodsRoute = createRoute({
 });
 
 function mapFood(food: any, other_nutrients: any[] = []) {
-  const { 
-    search_vector, searchVector, rank, ...rest 
-  } = food;
-  
+  const { search_vector: _sv, searchVector: _sv2, rank: _r, ...rest } = food;
+
   return {
     ...rest,
     name: toFriendlyCase(rest.name),
@@ -105,10 +106,10 @@ function mapFood(food: any, other_nutrients: any[] = []) {
 foods.openapi(listFoodsRoute, async (c) => {
   const { limit, offset } = c.req.valid('query');
   const foodsResult = await db.select().from(foodsTable).limit(limit).offset(offset);
-  
-  const nutrientsMap = await fetchNutrientsForFoods(foodsResult.map(f => f.id));
 
-  const result = foodsResult.map(food => mapFood(food, nutrientsMap.get(food.id) || []));
+  const nutrientsMap = await fetchNutrientsForFoods(foodsResult.map((f) => f.id));
+
+  const result = foodsResult.map((food) => mapFood(food, nutrientsMap.get(food.id) || []));
 
   return c.json(result);
 });
@@ -174,20 +175,33 @@ const searchFoodsRoute = createRoute({
 });
 
 foods.openapi(searchFoodsRoute, async (c) => {
-  const { 
-    q, limit, offset, brand, dataSource, category, 
-    minProtein, maxProtein, minCalories, maxCalories,
-    nutrientName, minNutrientValue 
+  const {
+    q,
+    limit,
+    offset,
+    brand,
+    dataSource,
+    category,
+    minProtein,
+    maxProtein,
+    minCalories,
+    maxCalories,
+    nutrientName,
+    minNutrientValue,
   } = c.req.valid('query');
-  
-  const searchQuery = q.trim().split(/\s+/).map(term => `${term}:*`).join(' & ');
+
+  const searchQuery = q
+    .trim()
+    .split(/\s+/)
+    .map((term) => `${term}:*`)
+    .join(' & ');
 
   // Build dynamic filters
   const conditions: any[] = [];
   if (brand) conditions.push(sql`brand ILIKE ${'%' + brand + '%'}`);
   if (dataSource) conditions.push(sql`f."dataSource" = ${dataSource}`);
   if (category) conditions.push(sql`category ILIKE ${'%' + category + '%'}`);
-  
+
   // Robust numeric parsing for messy data (handles "< 0,3", "..", etc.)
   const robustCast = (col: any) => {
     const cleaned = sql`regexp_replace(replace(${col}, ',', '.'), '[^0-9.]', '', 'g')`;
@@ -198,15 +212,15 @@ foods.openapi(searchFoodsRoute, async (c) => {
   if (maxProtein) conditions.push(sql`${robustCast(sql`protein`)} <= ${maxProtein}`);
   if (minCalories) conditions.push(sql`${robustCast(sql`calories`)} >= ${minCalories}`);
   if (maxCalories) conditions.push(sql`${robustCast(sql`calories`)} <= ${maxCalories}`);
-  
+
   if (nutrientName) {
     const nutrientResults = await db
       .select({ id: nutrientsTable.id })
       .from(nutrientsTable)
       .where(sql`name ILIKE ${'%' + nutrientName + '%'}`);
-    
+
     if (nutrientResults.length > 0) {
-      const ids = nutrientResults.map(n => n.id);
+      const ids = nutrientResults.map((n) => n.id);
       conditions.push(sql`EXISTS (
         SELECT 1 FROM food_nutrients fn 
         WHERE fn."foodId" = f.id 
@@ -218,9 +232,7 @@ foods.openapi(searchFoodsRoute, async (c) => {
     }
   }
 
-  const whereClause = conditions.length > 0 
-    ? sql`AND ${sql.join(conditions, sql` AND `)}` 
-    : sql``;
+  const whereClause = conditions.length > 0 ? sql`AND ${sql.join(conditions, sql` AND `)}` : sql``;
 
   try {
     const foodsResult = await db.execute(sql`
@@ -258,7 +270,7 @@ foods.openapi(searchFoodsRoute, async (c) => {
 foods.openapi(getFoodRoute, async (c) => {
   const { id } = c.req.valid('param');
   const [food] = await db.select().from(foodsTable).where(eq(foodsTable.id, id));
-  
+
   if (!food) {
     throw new NotFoundError('Food');
   }

@@ -160,10 +160,7 @@
       "compositePrimaryKeys": {
         "food_nutrients_foodId_nutrientId_pk": {
           "name": "food_nutrients_foodId_nutrientId_pk",
-          "columns": [
-            "foodId",
-            "nutrientId"
-          ]
+          "columns": ["foodId", "nutrientId"]
         }
       },
       "uniqueConstraints": {},
@@ -241,10 +238,7 @@
       "compositePrimaryKeys": {
         "food_nutrients_normalized_foodId_nutrientId_pk": {
           "name": "food_nutrients_normalized_foodId_nutrientId_pk",
-          "columns": [
-            "foodId",
-            "nutrientId"
-          ]
+          "columns": ["foodId", "nutrientId"]
         }
       },
       "uniqueConstraints": {},
@@ -293,9 +287,7 @@
         "nutrients_normalized_name_unique": {
           "name": "nutrients_normalized_name_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "name"
-          ]
+          "columns": ["name"]
         }
       },
       "policies": {},
@@ -400,11 +392,7 @@
       "compositePrimaryKeys": {
         "exercise_relations_fromExerciseId_toExerciseId_relationType_pk": {
           "name": "exercise_relations_fromExerciseId_toExerciseId_relationType_pk",
-          "columns": [
-            "fromExerciseId",
-            "toExerciseId",
-            "relationType"
-          ]
+          "columns": ["fromExerciseId", "toExerciseId", "relationType"]
         }
       },
       "uniqueConstraints": {},
@@ -489,11 +477,7 @@
       "compositePrimaryKeys": {
         "exercise_muscles_exerciseId_muscleId_role_pk": {
           "name": "exercise_muscles_exerciseId_muscleId_role_pk",
-          "columns": [
-            "exerciseId",
-            "muscleId",
-            "role"
-          ]
+          "columns": ["exerciseId", "muscleId", "role"]
         }
       },
       "uniqueConstraints": {},
@@ -633,10 +617,7 @@
       "compositePrimaryKeys": {
         "exercise_equipment_exerciseId_equipmentId_pk": {
           "name": "exercise_equipment_exerciseId_equipmentId_pk",
-          "columns": [
-            "exerciseId",
-            "equipmentId"
-          ]
+          "columns": ["exerciseId", "equipmentId"]
         }
       },
       "uniqueConstraints": {},
@@ -666,10 +647,7 @@
       "compositePrimaryKeys": {
         "exercise_movement_patterns_exerciseId_movementPatternId_pk": {
           "name": "exercise_movement_patterns_exerciseId_movementPatternId_pk",
-          "columns": [
-            "exerciseId",
-            "movementPatternId"
-          ]
+          "columns": ["exerciseId", "movementPatternId"]
         }
       },
       "uniqueConstraints": {},
@@ -777,10 +755,7 @@
       "compositePrimaryKeys": {
         "supplement_ingredients_supplementId_ingredientId_pk": {
           "name": "supplement_ingredients_supplementId_ingredientId_pk",
-          "columns": [
-            "supplementId",
-            "ingredientId"
-          ]
+          "columns": ["supplementId", "ingredientId"]
         }
       },
       "uniqueConstraints": {},

@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/bun-sql';
 import { insertFoodChunk } from '../utils/foods';
 import { getLogger } from '../utils/logger';
-import { insertFoodNutrientLinks, syncNutrientMeta, type FoodNutrientLink, type NutrientMeta } from '../utils/nutrients';
+import { insertFoodNutrientLinks, syncNutrientMeta, type FoodNutrientLink } from '../utils/nutrients';
 
 config({ path: new URL('../../../.env', import.meta.url).pathname, quiet: true });
 
@@ -90,7 +90,7 @@ const downloadZip = () => {
 
   return Bun.file(ZIP_PATH)
     .exists()
-    .then(exists => {
+    .then((exists) => {
       if (exists) {
         logger.setProgress(DATA_SOURCE, 1, 1, 'BLS zip ready');
         return;
@@ -98,9 +98,9 @@ const downloadZip = () => {
 
       logger.setProgress(DATA_SOURCE, 0, 0, 'downloading BLS');
 
-      return fetch(BLS_URL).then(response => {
+      return fetch(BLS_URL).then((response) => {
         if (!response.ok) {
-          return response.text().then(body => {
+          return response.text().then((body) => {
             throw new Error(`BLS download failed with ${response.status}: ${body}`);
           });
         }
@@ -137,7 +137,7 @@ const unzip = () => {
 
   return Bun.file(paths.sheet)
     .exists()
-    .then(exists => {
+    .then((exists) => {
       if (exists) {
         logger.setProgress(DATA_SOURCE, 1, 1, 'BLS extracted');
         return;
@@ -241,8 +241,8 @@ const parseBlsFoods = async () => {
 
       if (externalId && name) {
         const micronutrients = nutrientColumns
-          .filter(nutrient => !primaryCodeSet.has(nutrient.code))
-          .flatMap(nutrient => {
+          .filter((nutrient) => !primaryCodeSet.has(nutrient.code))
+          .flatMap((nutrient) => {
             const value = numberValue(row.get(nutrient.column));
             if (value === undefined || value === 0) return [];
             return [{ code: nutrient.code, value: decimal(value) }];
@@ -281,8 +281,11 @@ const parseBlsFoods = async () => {
 };
 
 const insertFoods = async (
-  data: { foods: (NewFood & { micronutrients: Array<{ code: string; value: string }> })[]; nutrientColumns: NutrientColumn[] },
-  options: Required<BlsOptions>
+  data: {
+    foods: (NewFood & { micronutrients: Array<{ code: string; value: string }> })[];
+    nutrientColumns: NutrientColumn[];
+  },
+  options: Required<BlsOptions>,
 ) => {
   if (!DATABASE_URL) throw new Error('DATABASE_URL is required');
 
@@ -294,7 +297,7 @@ const insertFoods = async (
   logger.info('syncing nutrient metadata...');
   const nutrientIdMap = await syncNutrientMeta(
     sqlClient,
-    nutrientColumns.map(c => ({ name: c.name, unit: c.unit }))
+    nutrientColumns.map((c) => ({ name: c.name, unit: c.unit })),
   );
 
   // 2. Clear existing
@@ -305,22 +308,22 @@ const insertFoods = async (
   // 3. Insert Foods and link Nutrients
   let inserted = 0;
   const chunkSize = options.chunkSize;
-  
+
   for (let i = 0; i < foods.length; i += chunkSize) {
     const chunk = foods.slice(i, i + chunkSize);
-    
+
     // Insert foods and get IDs
     const dbFoods = await insertFoodChunk(sqlClient, chunk);
-    const idMap = new Map(dbFoods.map(f => [f.externalId, f.id]));
+    const idMap = new Map(dbFoods.map((f) => [f.externalId, f.id]));
 
     // Prepare link rows
     const links: FoodNutrientLink[] = [];
-    chunk.forEach(food => {
+    chunk.forEach((food) => {
       const foodId = idMap.get(food.externalId!);
       if (!foodId) return;
 
-      food.micronutrients.forEach(m => {
-        const meta = nutrientColumns.find(c => c.code === m.code);
+      food.micronutrients.forEach((m) => {
+        const meta = nutrientColumns.find((c) => c.code === m.code);
         const nutrientId = nutrientIdMap.get(`${meta?.name}|${meta?.unit}`);
         if (nutrientId) {
           links.push({ foodId, nutrientId, value: m.value });

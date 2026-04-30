@@ -1,10 +1,12 @@
-
 import { db } from './src/lib/db';
 import { foodsTable } from '@repo/db/src/schema';
 import { sql, desc } from 'drizzle-orm';
 
 async function testSearch(q: string) {
-  const searchQuery = q.split(' ').map(term => `${term}:*`).join(' & ');
+  const searchQuery = q
+    .split(' ')
+    .map((term) => `${term}:*`)
+    .join(' & ');
   const start = performance.now();
   const results = await db
     .select({ id: foodsTable.id, name: foodsTable.name })
@@ -17,10 +19,10 @@ async function testSearch(q: string) {
 }
 
 async function main() {
-  await testSearch("chicken breast");
-  await testSearch("greek yogurt");
-  await testSearch("apple");
-  await testSearch("whey protein");
+  await testSearch('chicken breast');
+  await testSearch('greek yogurt');
+  await testSearch('apple');
+  await testSearch('whey protein');
 }
 
 main();

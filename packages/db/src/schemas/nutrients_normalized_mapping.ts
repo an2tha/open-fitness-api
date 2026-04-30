@@ -13,5 +13,5 @@ export const nutrientsNormalizedMappingTable = pgTable(
     // Each original nutrient maps to exactly one normalized nutrient.
     // Many originals can map to the same normalized nutrient (many-to-one).
     originalIdx: uniqueIndex('nutrients_normalized_mapping_original_idx').on(t.originalNutrientId),
-  })
+  }),
 );

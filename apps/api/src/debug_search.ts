@@ -1,20 +1,19 @@
-
 import { db } from './lib/db';
-import { foodsTable, foodNutrientsTable, nutrientsTable } from '@repo/db/src/schema';
-import { eq, inArray } from 'drizzle-orm';
+import { foodsTable, foodNutrientsTable } from '@repo/db/src/schema';
+import { inArray } from 'drizzle-orm';
 
 async function main() {
-  console.log("Fetching some foods...");
+  console.log('Fetching some foods...');
   const foods = await db.select().from(foodsTable).limit(5);
-  console.log("Foods:", foods.length);
-  
+  console.log('Foods:', foods.length);
+
   if (foods.length === 0) {
-    console.log("No foods found");
+    console.log('No foods found');
     return;
   }
-  
-  const foodIds = foods.map(f => f.id);
-  console.log("Food IDs:", foodIds);
+
+  const foodIds = foods.map((f) => f.id);
+  console.log('Food IDs:', foodIds);
 
   const nutrients = await db
     .select({
@@ -24,12 +23,12 @@ async function main() {
     })
     .from(foodNutrientsTable)
     .where(inArray(foodNutrientsTable.foodId, foodIds));
-    
-  console.log("Nutrients found:", nutrients.length);
+
+  console.log('Nutrients found:', nutrients.length);
   if (nutrients.length > 0) {
-      console.log("Sample nutrient:", nutrients[0]);
+    console.log('Sample nutrient:', nutrients[0]);
   } else {
-      console.log("No nutrients found for these foods");
+    console.log('No nutrients found for these foods');
   }
 }
 

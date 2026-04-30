@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { db } from '@repo/db';
 import { nutrientsTable } from '@repo/db/src/schema';
-import { eq, sql, or, desc } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { NotFoundError } from '../lib/error';
 import { toFriendlyCase } from '../lib/utils';
 
@@ -40,7 +40,11 @@ const nutrients = new OpenAPIHono();
 
 nutrients.openapi(searchNutrientsRoute, async (c) => {
   const { q, limit, offset } = c.req.valid('query');
-  const searchQuery = q.trim().split(/\s+/).map(term => `${term}:*`).join(' & ');
+  const searchQuery = q
+    .trim()
+    .split(/\s+/)
+    .map((term) => `${term}:*`)
+    .join(' & ');
 
   const result = await db.execute(sql`
     WITH matches AS (
@@ -64,13 +68,15 @@ nutrients.openapi(searchNutrientsRoute, async (c) => {
     OFFSET ${offset}
   `);
 
-  return c.json(result.map((n: any) => {
-    const { search_vector, searchVector, rank, ...rest } = n;
-    return {
-      ...rest,
-      name: toFriendlyCase(rest.name)
-    };
-  }));
+  return c.json(
+    result.map((n: any) => {
+      const { search_vector: _sv, searchVector: _sv2, rank: _r, ...rest } = n;
+      return {
+        ...rest,
+        name: toFriendlyCase(rest.name),
+      };
+    }),
+  );
 });
 
 const listNutrientsRoute = createRoute({
@@ -100,13 +106,15 @@ const listNutrientsRoute = createRoute({
 nutrients.openapi(listNutrientsRoute, async (c) => {
   const { limit, offset } = c.req.valid('query');
   const result = await db.select().from(nutrientsTable).limit(limit).offset(offset);
-  return c.json(result.map((n: any) => {
-    const { search_vector, searchVector, ...rest } = n;
-    return {
-      ...rest,
-      name: toFriendlyCase(rest.name)
-    };
-  }));
+  return c.json(
+    result.map((n: any) => {
+      const { search_vector: _sv, searchVector: _sv2, ...rest } = n;
+      return {
+        ...rest,
+        name: toFriendlyCase(rest.name),
+      };
+    }),
+  );
 });
 
 const getNutrientRoute = createRoute({
@@ -141,10 +149,10 @@ nutrients.openapi(getNutrientRoute, async (c) => {
   if (result.length === 0) {
     throw new NotFoundError('Nutrient');
   }
-  const { search_vector, searchVector, ...rest } = result[0] as any;
+  const { search_vector: _sv, searchVector: _sv2, ...rest } = result[0] as any;
   return c.json({
     ...rest,
-    name: toFriendlyCase(rest.name)
+    name: toFriendlyCase(rest.name),
   });
 });
 

@@ -2,9 +2,9 @@ import { config } from 'dotenv';
 import path from 'node:path';
 import { z } from 'zod';
 
-config({ 
+config({
   path: path.resolve(import.meta.dirname, '../../../../.env'),
-  quiet: true 
+  quiet: true,
 });
 
 const envSchema = z.object({

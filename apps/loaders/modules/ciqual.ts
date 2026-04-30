@@ -13,7 +13,8 @@ config({ path: new URL('../../../.env', import.meta.url).pathname, quiet: true }
 const DATABASE_URL = process.env.DATABASE_URL;
 const DATA_SOURCE = 'ciqual';
 // CIQUAL 2020 English Excel file from official ANSES source
-const CIQUAL_URL = 'https://ciqual.anses.fr/cms/sites/default/files/inline-files/Table%20Ciqual%202020_ENG_2020%2007%2007.xls';
+const CIQUAL_URL =
+  'https://ciqual.anses.fr/cms/sites/default/files/inline-files/Table%20Ciqual%202020_ENG_2020%2007%2007.xls';
 const DATA_PATH = '/tmp/ciqual.xls';
 
 type CiqualRow = {
@@ -41,13 +42,13 @@ const parseCiqual = async () => {
 
   // Get column headers from first row
   const headers = Object.keys(rows[0]);
-  
+
   // Identify nutrient columns (those with units in parentheses like "(g/100g)", "(mg/100g)", etc.)
-  const nutrientColumns = headers.filter(h => h.match(/\([^)]+\)$/));
+  const nutrientColumns = headers.filter((h) => h.match(/\([^)]+\)$/));
 
   // Build nutrient metadata from column names
   const nutrientMetaSet = new Set<string>();
-  nutrientColumns.forEach(col => {
+  nutrientColumns.forEach((col) => {
     const match = col.match(/^(.+?)\s*\((.+?)\)$/);
     if (match) {
       const name = match[1].trim();
@@ -56,7 +57,7 @@ const parseCiqual = async () => {
     }
   });
 
-  const nutrientMeta = Array.from(nutrientMetaSet).map(s => JSON.parse(s));
+  const nutrientMeta = Array.from(nutrientMetaSet).map((s) => JSON.parse(s));
 
   logger.info(`parsed ${rows.length} CIQUAL records, ${nutrientMeta.length} nutrient types`);
 
@@ -71,7 +72,7 @@ const parseCiqual = async () => {
 
     const name = String(row['alim_nom_eng'] || '');
     const category = String(row['alim_grp_nom_eng'] || '');
-    
+
     // Get main nutrients for the food record
     const getNutrient = (colName: string): string => {
       const val = row[colName];
@@ -119,10 +120,10 @@ export const loadCiqual = async () => {
   for (let i = 0; i < foods.length; i += chunkSize) {
     const chunk = foods.slice(i, i + chunkSize);
     const dbFoods = await insertFoodChunk(sqlClient, chunk);
-    const idMap = new Map(dbFoods.map(f => [f.externalId, f.id]));
+    const idMap = new Map(dbFoods.map((f) => [f.externalId, f.id]));
 
     const links: FoodNutrientLink[] = [];
-    chunk.forEach(food => {
+    chunk.forEach((food) => {
       const foodId = idMap.get(food.externalId);
       if (!foodId) return;
 

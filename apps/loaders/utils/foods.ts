@@ -13,7 +13,7 @@ export const insertFoodChunk = async (sql: SqlClient, foods: NewFood[]) => {
   if (!foods.length) return [];
 
   const values = foods
-    .map(food => {
+    .map((food) => {
       return `(${[
         literal(food.externalId),
         literal(food.dataSource),

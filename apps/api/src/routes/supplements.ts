@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { db } from '@repo/db';
 import { supplementsTable } from '@repo/db/src/schema';
-import { eq, sql, or, desc } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { NotFoundError } from '../lib/error';
 import { toFriendlyCase } from '../lib/utils';
 
@@ -46,7 +46,11 @@ const supplements = new OpenAPIHono();
 
 supplements.openapi(searchSupplementsRoute, async (c) => {
   const { q, limit, offset } = c.req.valid('query');
-  const searchQuery = q.trim().split(/\s+/).map(term => `${term}:*`).join(' & ');
+  const searchQuery = q
+    .trim()
+    .split(/\s+/)
+    .map((term) => `${term}:*`)
+    .join(' & ');
 
   const result = await db.execute(sql`
     WITH matches AS (
@@ -70,14 +74,16 @@ supplements.openapi(searchSupplementsRoute, async (c) => {
     OFFSET ${offset}
   `);
 
-  return c.json(result.map((s: any) => {
-    const { search_vector, searchVector, rank, ...rest } = s;
-    return {
-      ...rest,
-      name: toFriendlyCase(rest.name),
-      brand: toFriendlyCase(rest.brand)
-    };
-  }));
+  return c.json(
+    result.map((s: any) => {
+      const { search_vector: _sv, searchVector: _sv2, rank: _r, ...rest } = s;
+      return {
+        ...rest,
+        name: toFriendlyCase(rest.name),
+        brand: toFriendlyCase(rest.brand),
+      };
+    }),
+  );
 });
 
 const listSupplementsRoute = createRoute({
@@ -107,14 +113,16 @@ const listSupplementsRoute = createRoute({
 supplements.openapi(listSupplementsRoute, async (c) => {
   const { limit, offset } = c.req.valid('query');
   const result = await db.select().from(supplementsTable).limit(limit).offset(offset);
-  return c.json(result.map((s: any) => {
-    const { search_vector, searchVector, ...rest } = s;
-    return {
-      ...rest,
-      name: toFriendlyCase(rest.name),
-      brand: toFriendlyCase(rest.brand)
-    };
-  }));
+  return c.json(
+    result.map((s: any) => {
+      const { search_vector: _sv, searchVector: _sv2, ...rest } = s;
+      return {
+        ...rest,
+        name: toFriendlyCase(rest.name),
+        brand: toFriendlyCase(rest.brand),
+      };
+    }),
+  );
 });
 
 const getSupplementRoute = createRoute({
@@ -149,11 +157,11 @@ supplements.openapi(getSupplementRoute, async (c) => {
   if (result.length === 0) {
     throw new NotFoundError('Supplement');
   }
-  const { search_vector, searchVector, ...rest } = result[0] as any;
+  const { search_vector: _sv, searchVector: _sv2, ...rest } = result[0] as any;
   return c.json({
     ...rest,
     name: toFriendlyCase(rest.name),
-    brand: toFriendlyCase(rest.brand)
+    brand: toFriendlyCase(rest.brand),
   });
 });
 
