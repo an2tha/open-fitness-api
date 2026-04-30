@@ -1,0 +1,21 @@
+{
+  "name": "loaders",
+  "module": "index.ts",
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/inquirer": "^9.0.9",
+    "drizzle-kit": "^0.31.10"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "type": "module",
+  "dependencies": {
+    "@repo/db": "workspace:*",
+    "cmd-ts": "^0.15.0",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
+    "inquirer": "^13.4.2",
+    "tslog": "^4.10.2"
+  }
+}
