@@ -99,6 +99,55 @@
       "when": 1778087525132,
       "tag": "0013_chubby_power_man",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1778089743771,
+      "tag": "0014_marvelous_warbird",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1778092278217,
+      "tag": "0015_sudden_lethal_legion",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1778092330660,
+      "tag": "0016_concerned_speedball",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1778092407398,
+      "tag": "0017_numerous_lyja",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1778092429934,
+      "tag": "0018_lucky_firestar",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1778092675734,
+      "tag": "0019_pink_betty_ross",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1778093110446,
+      "tag": "0020_skinny_tempest",
+      "breakpoints": true
     }
   ]
 }

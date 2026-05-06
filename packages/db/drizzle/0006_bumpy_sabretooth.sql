@@ -1,1 +1,0 @@
-CREATE UNIQUE INDEX "nutrients_name_unit_idx" ON "nutrients" USING btree ("name","unit");

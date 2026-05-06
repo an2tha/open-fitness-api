@@ -1,11 +1,10 @@
-import { drizzle } from 'drizzle-orm/bun-sql';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import { config } from 'dotenv';
 import path from 'node:path';
 
 // Find workspace root .env
 config({
   path: path.resolve(import.meta.dirname, '../../../.env'),
-  // @ts-expect-error - quiet is not in DotenvConfigOptions but supported by some versions/wrappers
   quiet: true,
 });
 

@@ -9,7 +9,7 @@ export const equipmentTable = pgTable(
     category: varchar({ length: 2056 }),
   },
   (t) => ({
-    nameIdx: uniqueIndex('equipment_name_idx').on(t.name),
+    nameIdx: index('equipment_name_idx').on(t.name),
   }),
 );
 

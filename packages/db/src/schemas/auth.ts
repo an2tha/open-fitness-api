@@ -7,16 +7,24 @@ export const usersTable = pgTable('users', {
   email: varchar('email', { length: 255 }).notNull().unique(),
   emailVerified: boolean('email_verified').default(false).notNull(),
   image: varchar('image', { length: 500 }),
-  createdAt: timestamp('created_at').default(sql`now()`).notNull(),
-  updatedAt: timestamp('updated_at').default(sql`now()`).notNull(),
+  createdAt: timestamp('created_at')
+    .default(sql`now()`)
+    .notNull(),
+  updatedAt: timestamp('updated_at')
+    .default(sql`now()`)
+    .notNull(),
 });
 
 export const sessionsTable = pgTable('sessions', {
   id: text('id').primaryKey(),
   expiresAt: timestamp('expires_at'),
   token: text('token').notNull().unique(),
-  createdAt: timestamp('created_at').default(sql`now()`).notNull(),
-  updatedAt: timestamp('updated_at').default(sql`now()`).notNull(),
+  createdAt: timestamp('created_at')
+    .default(sql`now()`)
+    .notNull(),
+  updatedAt: timestamp('updated_at')
+    .default(sql`now()`)
+    .notNull(),
   ipAddress: varchar('ip_address', { length: 45 }),
   userAgent: text('user_agent'),
   userId: integer('user_id')
@@ -26,8 +34,12 @@ export const sessionsTable = pgTable('sessions', {
 
 export const verificationsTable = pgTable('verifications', {
   id: text('id').primaryKey(),
-  createdAt: timestamp('created_at').default(sql`now()`).notNull(),
-  updatedAt: timestamp('updated_at').default(sql`now()`).notNull(),
+  createdAt: timestamp('created_at')
+    .default(sql`now()`)
+    .notNull(),
+  updatedAt: timestamp('updated_at')
+    .default(sql`now()`)
+    .notNull(),
   expiresAt: timestamp('expires_at'),
   target: text('target').notNull(),
   targetType: text('target_type').notNull(),
@@ -48,6 +60,10 @@ export const accountsTable = pgTable('accounts', {
   refreshTokenExpiresAt: timestamp('refresh_token_expires_at'),
   scope: text('scope'),
   password: text('password'),
-  createdAt: timestamp('created_at').default(sql`now()`).notNull(),
-  updatedAt: timestamp('updated_at').default(sql`now()`).notNull(),
+  createdAt: timestamp('created_at')
+    .default(sql`now()`)
+    .notNull(),
+  updatedAt: timestamp('updated_at')
+    .default(sql`now()`)
+    .notNull(),
 });

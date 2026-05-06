@@ -9,7 +9,7 @@ export const musclesTable = pgTable(
     group: varchar({ length: 2056 }),
   },
   (t) => ({
-    nameIdx: uniqueIndex('muscles_name_idx').on(t.name),
+    nameIdx: index('muscles_name_idx').on(t.name),
   }),
 );
 

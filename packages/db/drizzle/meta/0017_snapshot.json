@@ -1,6 +1,6 @@
 {
-  "id": "294d5cfa-e5fc-4d0d-9de6-44214af0254a",
-  "prevId": "81c8c7a7-528d-426d-9c11-fe066e3356de",
+  "id": "4ee6819c-363b-4f42-b462-3f07645fac54",
+  "prevId": "c5de6851-4561-4528-9ee6-8e427a0f4707",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -290,7 +290,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": true,
+          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -421,7 +421,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": true,
+          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -621,7 +621,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": true,
+          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -806,7 +806,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": true,
+          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -1000,7 +1000,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": true,
+          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}

@@ -1,4 +1,4 @@
-import { pgTable, integer, varchar, primaryKey, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, integer, varchar, primaryKey, index } from 'drizzle-orm/pg-core';
 
 export const nutrientsNormalizedTable = pgTable(
   'nutrients_normalized',
@@ -8,7 +8,7 @@ export const nutrientsNormalizedTable = pgTable(
     unit: varchar({ length: 2056 }).notNull(),
   },
   (t) => ({
-    nameUnitIdx: uniqueIndex('nutrients_normalized_name_unit_idx').on(t.name, t.unit),
+    nameUnitIdx: index('nutrients_normalized_name_unit_idx').on(t.name, t.unit),
   }),
 );
 

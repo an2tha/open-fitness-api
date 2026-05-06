@@ -23,7 +23,6 @@ ALTER TABLE "exercise_equipment" ADD CONSTRAINT "exercise_equipment_equipmentId_
 ALTER TABLE "exercise_movement_patterns" ADD CONSTRAINT "exercise_movement_patterns_exerciseId_exercises_id_fk" FOREIGN KEY ("exerciseId") REFERENCES "public"."exercises"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "exercise_movement_patterns" ADD CONSTRAINT "exercise_movement_patterns_movementPatternId_movement_patterns_id_fk" FOREIGN KEY ("movementPatternId") REFERENCES "public"."movement_patterns"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "foods_search_idx" ON "foods" USING gin ("search_vector");--> statement-breakpoint
-CREATE INDEX "nutrients_search_idx" ON "nutrients" USING gin ("search_vector");--> statement-breakpoint
 CREATE INDEX "exercises_search_idx" ON "exercises" USING gin ("search_vector");--> statement-breakpoint
 CREATE INDEX "exercise_muscles_pk" ON "exercise_muscles" USING btree ("exerciseId","muscleId","role");--> statement-breakpoint
 CREATE UNIQUE INDEX "muscles_name_idx" ON "muscles" USING btree ("name");--> statement-breakpoint

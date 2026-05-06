@@ -15,7 +15,7 @@ export const exercisesTable = pgTable(
     })('search_vector').generatedAlwaysAs(sql`to_tsvector('english', "name" || ' ' || COALESCE("description", ''))`),
   },
   (t) => ({
-    nameIdx: uniqueIndex('exercises_name_idx').on(t.name),
+    nameIdx: index('exercises_name_idx').on(t.name),
     searchIdx: index('exercises_search_idx').using('gin', t.searchVector),
     nameTrgmIdx: index('exercises_name_trgm_idx').using('gin', t.name.op('gin_trgm_ops')),
   }),

@@ -1,4 +1,4 @@
-import { pgTable, integer, varchar, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, integer, varchar, index } from 'drizzle-orm/pg-core';
 
 export const exercisesNormalizedMappingTable = pgTable(
   'exercises_normalized_mapping',
@@ -10,6 +10,6 @@ export const exercisesNormalizedMappingTable = pgTable(
     normalizedName: varchar({ length: 2056 }).notNull(),
   },
   (t) => ({
-    originalIdx: uniqueIndex('exercises_normalized_mapping_original_idx').on(t.originalExerciseId),
+    originalIdx: index('exercises_normalized_mapping_original_idx').on(t.originalExerciseId),
   }),
 );
