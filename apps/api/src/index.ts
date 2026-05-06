@@ -2,7 +2,7 @@ import { serve } from 'bun';
 import app from './app';
 import { env, isProduction } from './lib/env';
 
-const port = parseInt(env.PORT);
+const port = parseInt(env.API_PORT);
 
 async function gracefulShutdown(signal: string) {
   console.log(`\n${signal} received. Starting graceful shutdown...`);

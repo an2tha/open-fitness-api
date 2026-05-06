@@ -9,7 +9,7 @@ config({
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  PORT: z.string().default('3000'),
+  API_PORT: z.string().default('3000'),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   API_PREFIX: z.string().default('/api/v1'),
   REQUEST_ID_HEADER: z.string().default('x-request-id'),

@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { db } from '@repo/db';
-import { apiKeysTable } from '@repo/db/src/schema';
-import { eq, desc } from 'drizzle-orm';
+import { apiKeysTable, foodsTable, exercisesTable, supplementsTable, nutrientsTable } from '@repo/db/src/schema';
+import { eq, desc, count } from 'drizzle-orm';
 import { generateApiKey } from '../../lib/api-key';
 import { env } from '../../lib/env';
 import { UnauthorizedError, NotFoundError } from '../../lib/error';
@@ -323,6 +323,103 @@ admin.openapi(deleteApiKeyRoute, async (c) => {
   if (!deleted) throw new NotFoundError('API Key');
 
   return c.json({ success: true, message: `API key ${id} deleted.` });
+});
+
+// --- Dashboard overview ---
+
+const overviewRoute = createRoute({
+  method: 'get',
+  path: '/overview/stats',
+  tags: ['Admin – API Keys'],
+  summary: 'Get dashboard overview metrics',
+  responses: {
+    200: {
+      description: 'Overview metrics for the admin dashboard',
+      content: {
+        'application/json': {
+          schema: z.object({
+            success: z.boolean(),
+            server: z.object({
+              uptime: z.number(),
+              memory: z.object({
+                rss: z.number(),
+                heapTotal: z.number(),
+                heapUsed: z.number(),
+                external: z.number(),
+                arrayBuffers: z.number(),
+              }),
+              nodeVersion: z.string(),
+              timestamp: z.string().datetime(),
+            }),
+            dataset: z.object({
+              foods: z.number(),
+              exercises: z.number(),
+              supplements: z.number(),
+              nutrients: z.number(),
+            }),
+            apiKeys: z.object({
+              total: z.number(),
+              active: z.number(),
+              revoked: z.number(),
+              expiringSoon: z.number(),
+              totalRequests: z.number(),
+              averageRequests: z.number(),
+              mostActive: apiKeyResponseSchema.nullable(),
+              recentActivity: z.array(apiKeyResponseSchema),
+            }),
+          }),
+        },
+      },
+    },
+  },
+});
+
+admin.openapi(overviewRoute, async (c) => {
+  const [foodsCount, exercisesCount, supplementsCount, nutrientsCount] = await Promise.all([
+    db.select({ value: count() }).from(foodsTable),
+    db.select({ value: count() }).from(exercisesTable),
+    db.select({ value: count() }).from(supplementsTable),
+    db.select({ value: count() }).from(nutrientsTable),
+  ]);
+
+  const keys = await db.select().from(apiKeysTable).orderBy(desc(apiKeysTable.createdAt));
+  const now = Date.now();
+  const soonMs = 7 * 24 * 60 * 60 * 1000;
+  const totalRequests = keys.reduce((sum, key) => sum + (key.requestCount ?? 0), 0);
+  const activeKeys = keys.filter((key) => !key.revoked && (!key.expiresAt || key.expiresAt.getTime() > now)).length;
+  const revokedKeys = keys.filter((key) => key.revoked).length;
+  const expiringSoon = keys.filter((key) => key.expiresAt && key.expiresAt.getTime() - now < soonMs && key.expiresAt.getTime() > now).length;
+  const mostActive = [...keys].sort((a, b) => (b.requestCount ?? 0) - (a.requestCount ?? 0))[0] ?? null;
+  const recentActivity = [...keys]
+    .filter((key) => key.lastUsedAt)
+    .sort((a, b) => (b.lastUsedAt?.getTime() ?? 0) - (a.lastUsedAt?.getTime() ?? 0))
+    .slice(0, 5);
+
+  return c.json({
+    success: true,
+    server: {
+      uptime: Math.floor(process.uptime()),
+      memory: process.memoryUsage(),
+      nodeVersion: process.version,
+      timestamp: new Date().toISOString(),
+    },
+    dataset: {
+      foods: foodsCount[0]?.value ?? 0,
+      exercises: exercisesCount[0]?.value ?? 0,
+      supplements: supplementsCount[0]?.value ?? 0,
+      nutrients: nutrientsCount[0]?.value ?? 0,
+    },
+    apiKeys: {
+      total: keys.length,
+      active: activeKeys,
+      revoked: revokedKeys,
+      expiringSoon,
+      totalRequests,
+      averageRequests: keys.length ? Math.round(totalRequests / keys.length) : 0,
+      mostActive: mostActive ? formatKeyRecord(mostActive) : null,
+      recentActivity: recentActivity.map(formatKeyRecord),
+    },
+  });
 });
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────

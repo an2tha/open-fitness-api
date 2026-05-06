@@ -1,9 +1,11 @@
+import { db } from '@repo/db';
+import { sql } from 'drizzle-orm';
+
 export { db } from '@repo/db';
 
 export async function checkDatabaseConnection(): Promise<boolean> {
   try {
-    const { db } = await import('@repo/db');
-    await db.query`SELECT 1`;
+    await db.execute(sql`SELECT 1`);
     return true;
   } catch (error) {
     console.error('Database connection failed:', error);

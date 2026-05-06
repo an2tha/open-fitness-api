@@ -131,12 +131,12 @@ const searchExercisesRoute = createRoute({
 
 const exercises = new OpenAPIHono();
 
-exercises.openapi(searchExercisesRoute, async (c) => {
+exercises.openapi(searchExercisesRoute, (async (c: any) => {
   const { q, limit, offset, muscle, equipment } = c.req.valid('query');
   const searchQuery = q
     .trim()
     .split(/\s+/)
-    .map((term) => `${term}:*`)
+    .map((term: any) => `${term}:*`)
     .join(' & ');
 
   const conditions: any[] = [];
@@ -189,7 +189,7 @@ exercises.openapi(searchExercisesRoute, async (c) => {
   } catch (e) {
     return c.json({ error: String(e) }, 500);
   }
-});
+}) as any);
 
 const listExercisesRoute = createRoute({
   method: 'get',

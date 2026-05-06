@@ -1,30 +1,80 @@
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { requestIdMiddleware, corsMiddleware, securityHeaders, rateLimitMiddleware } from './middleware/security';
 import { apiKeyAuthMiddleware } from './middleware/api-key-auth';
 import { logger } from './middleware/logger';
-import { errorMiddleware } from './middleware/error';
 import routes from './routes';
 import { env } from './lib/env';
+import { AppError, fromZodError } from './lib/error';
 
-const app = new Hono({
-  strict: false,
-});
+function handleAppError(error: unknown, c: Context) {
+  const requestId = c.get('requestId') || 'unknown';
 
-app.use('*', requestIdMiddleware);
-app.use('*', corsMiddleware);
-app.use('*', securityHeaders);
-app.use('*', rateLimitMiddleware);
-app.use('*', logger);
-app.use('*', errorMiddleware);
+  if (error instanceof AppError) {
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: error.code,
+          message: error.message,
+          requestId,
+        },
+      },
+      error.statusCode,
+    );
+  }
 
-// API key authentication (enable with API_KEY_AUTH_ENABLED=true)
-if (env.API_KEY_AUTH_ENABLED === 'true') {
-  app.use('*', apiKeyAuthMiddleware);
+  if (error instanceof Error) {
+    const zodError = error as unknown as { constructor: { name: string } };
+    if (zodError.constructor.name === 'ZodError' || error.message.includes('Validation')) {
+      const validationError = fromZodError(error as unknown as import('zod').ZodError);
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: validationError.code,
+            message: validationError.message,
+            requestId,
+          },
+        },
+        validationError.statusCode,
+      );
+    }
+  }
+
+  console.error('Unhandled error:', error);
+
+  return c.json(
+    {
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: env.NODE_ENV === 'production' ? 'An unexpected error occurred' : String(error),
+        requestId,
+      },
+    },
+    500,
+  );
 }
 
-if (env.SWAGGER_ENABLED === 'true') {
-  app.get('/swagger-docs', (c) => {
-    return c.html(`
+export function createApp(options: { enableApiKeyAuth?: boolean } = {}) {
+  const app = new Hono({
+    strict: false,
+  });
+
+  app.use('*', requestIdMiddleware);
+  app.use('*', corsMiddleware);
+  app.use('*', securityHeaders);
+  app.use('*', rateLimitMiddleware);
+  app.use('*', logger);
+
+  // API key authentication (enable with API_KEY_AUTH_ENABLED=true)
+  if (options.enableApiKeyAuth ?? env.API_KEY_AUTH_ENABLED === 'true') {
+    app.use('*', apiKeyAuthMiddleware);
+  }
+
+  if (env.SWAGGER_ENABLED === 'true') {
+    app.get('/swagger-docs', (c) => {
+      return c.html(`
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -52,22 +102,29 @@ if (env.SWAGGER_ENABLED === 'true') {
   </script>
 </body>
 </html>`);
+    });
+  }
+
+  app.route(env.API_PREFIX, routes);
+
+  app.notFound((c) => {
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Resource not found',
+        },
+      },
+      404,
+    );
   });
+
+  app.onError((error, c) => handleAppError(error, c));
+
+  return app;
 }
 
-app.route(env.API_PREFIX, routes);
-
-app.notFound((c) => {
-  return c.json(
-    {
-      success: false,
-      error: {
-        code: 'NOT_FOUND',
-        message: 'Resource not found',
-      },
-    },
-    404,
-  );
-});
+const app = createApp();
 
 export default app;

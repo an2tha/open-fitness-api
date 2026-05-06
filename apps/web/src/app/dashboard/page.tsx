@@ -1,314 +1,475 @@
 'use client';
 
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  ArrowLeft, 
-  Search, 
-  ChevronDown, 
-  ChevronUp, 
-  Database, 
-  Activity, 
-  Terminal, 
-  Cpu, 
-  Copy,
-  ExternalLink,
-  Code2,
-  LayoutDashboard,
-  BookText
-} from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { AnimatePresence, motion } from 'framer-motion';
 import Link from 'next/link';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  Activity,
+  ArrowRight,
+  Check,
+  Copy,
+  Database,
+  KeyRound,
+  LogOut,
+  RefreshCw,
+  Search,
+  ShieldAlert,
+  Trash2,
+  Eye,
+} from 'lucide-react';
 
-// --- Types ---
-type ServerStats = {
-  uptime: number;
-  memory: { rss: number; heapTotal: number; heapUsed: number };
-  counts: { foods: number; exercises: number; supplements: number };
-  timestamp: string;
+type ApiKeyRecord = {
+  id: number;
+  keyPrefix: string;
+  name: string;
+  owner: string;
+  scopes: string[] | null;
+  rateLimitMax: number | null;
+  rateLimitWindowSecs: number | null;
+  requestCount: number;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  revoked: boolean;
+  revokedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
-// --- Utils ---
-const formatBytes = (bytes: number) => {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+type OverviewResponse = {
+  success: boolean;
+  server: {
+    uptime: number;
+    memory: { rss: number; heapTotal: number; heapUsed: number; external: number; arrayBuffers: number };
+    nodeVersion: string;
+    timestamp: string;
+  };
+  dataset: { foods: number; exercises: number; supplements: number; nutrients: number };
+  apiKeys: {
+    total: number;
+    active: number;
+    revoked: number;
+    expiringSoon: number;
+    totalRequests: number;
+    averageRequests: number;
+    mostActive: ApiKeyRecord | null;
+    recentActivity: ApiKeyRecord[];
+  };
 };
 
-const formatUptime = (seconds: number) => {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  return `${h}h ${m}m ${s}s`;
+type CreateFormState = {
+  name: string;
+  owner: string;
+  scopes: string;
+  rateLimitMax: string;
+  rateLimitWindowSecs: string;
+  expiresInDays: string;
 };
 
-function CodeSnippet({ id, type }: { id: string, type: 'python' | 'js' }) {
-  const jsCode = `const response = await fetch('http://localhost:3000/api/v1/foods/${id}', {
-  headers: { 'Authorization': 'Bearer YOUR_KEY' }
-});
-const data = await response.json();
-console.log(data);`;
+const API_PREFIX = '/api/v1';
+const STORAGE_KEY = 'ofdata_master_key';
 
-  const pyCode = `import requests
+const INITIAL_FORM: CreateFormState = { name: '', owner: '', scopes: '', rateLimitMax: '', rateLimitWindowSecs: '', expiresInDays: '' };
 
-url = "http://localhost:3000/api/v1/foods/${id}"
-headers = {"Authorization": "Bearer YOUR_KEY"}
-
-response = requests.get(url, headers=headers)
-print(response.json())`;
-
-  const code = type === 'js' ? jsCode : pyCode;
-
-  return (
-    <div className="relative group">
-      <button 
-        onClick={() => navigator.clipboard.writeText(code)}
-        className="absolute right-3 top-3 p-1.5 bg-neutral-900 border border-neutral-800 opacity-0 group-hover:opacity-100 transition-opacity"
-      >
-        <Copy className="w-3 h-3 text-neutral-500" />
-      </button>
-      <pre className="bg-black/50 border border-neutral-900 p-4 font-mono text-[11px] text-neutral-400 overflow-x-auto">
-        {code}
-      </pre>
-    </div>
-  );
+function formatNumber(value: number) {
+  return new Intl.NumberFormat('en', { maximumFractionDigits: 0 }).format(value);
 }
 
-function ExplorerRow({ record }: { record: any }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [codeType, setCodeType] = useState<'js' | 'python'>('js');
+function formatDuration(seconds: number) {
+  const days = Math.floor(seconds / 86_400);
+  const hours = Math.floor((seconds % 86_400) / 3_600);
+  const minutes = Math.floor((seconds % 3_600) / 60);
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
 
-  return (
-    <div className="border border-neutral-900 bg-neutral-950 mb-px group">
-      <button 
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-4 hover:bg-neutral-900/30 transition-colors text-left"
-      >
-        <div className="flex items-center gap-6 min-w-0">
-          <span className="font-mono text-[10px] text-neutral-600 uppercase tracking-widest shrink-0">{record.externalId || record.id}</span>
-          <span className="font-mono text-sm text-neutral-200 truncate uppercase">{record.name}</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-[10px] font-mono text-neutral-600 uppercase tracking-tighter">{record.dataSource || record.source}</span>
-          <ChevronDown className={`w-4 h-4 text-neutral-700 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-        </div>
-      </button>
+function relativeTime(value: string | null) {
+  if (!value) return '—';
+  const diff = Date.now() - new Date(value).getTime();
+  if (Number.isNaN(diff)) return '—';
+  const minutes = Math.floor(diff / 60_000);
+  const hours = Math.floor(diff / 3_600_000);
+  const days = Math.floor(diff / 86_400_000);
+  if (minutes < 1) return 'Now';
+  if (minutes < 60) return `${minutes}m`;
+  if (hours < 24) return `${hours}h`;
+  return `${days}d`;
+}
 
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div 
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden border-t border-neutral-900 bg-neutral-900/10"
-          >
-            <div className="p-6 grid grid-cols-1 xl:grid-cols-2 gap-8">
-              <div className="space-y-4">
-                <div className="flex justify-between items-end border-b border-neutral-800 pb-2">
-                  <h4 className="font-mono text-[10px] uppercase text-neutral-500 tracking-[0.2em]">Record_Metadata</h4>
-                </div>
-                <div className="bg-black/20 p-4 font-mono text-[11px] text-neutral-500 overflow-x-auto">
-                  <pre>{JSON.stringify(record, null, 2)}</pre>
-                </div>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="flex justify-between items-center border-b border-neutral-800 pb-2">
-                  <h4 className="font-mono text-[10px] uppercase text-neutral-500 tracking-[0.2em]">Access_Boilerplate</h4>
-                  <div className="flex gap-4 font-mono text-[9px]">
-                    <button onClick={() => setCodeType('js')} className={codeType === 'js' ? 'text-white' : 'text-neutral-600'}>JAVASCRIPT</button>
-                    <button onClick={() => setCodeType('python')} className={codeType === 'python' ? 'text-white' : 'text-neutral-600'}>PYTHON</button>
-                  </div>
-                </div>
-                <CodeSnippet id={record.id} type={codeType} />
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
+function splitScopes(scopes: string[] | null | undefined) {
+  if (!scopes || scopes.length === 0) return [];
+  return scopes;
 }
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [stats, setStats] = useState<ServerStats | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [results, setResults] = useState<any[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+  const [masterKey, setMasterKey] = useState('');
+  const [masterKeyInput, setMasterKeyInput] = useState('');
+  const [overview, setOverview] = useState<OverviewResponse | null>(null);
+  const [apiKeys, setApiKeys] = useState<ApiKeyRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [selectedKeyId, setSelectedKeyId] = useState<number | null>(null);
+  const [shownKey, setShownKey] = useState<string | null>(null);
+  const [createBusy, setCreateBusy] = useState(false);
+  const [createForm, setCreateForm] = useState<CreateFormState>(INITIAL_FORM);
+  const [createdSecret, setCreatedSecret] = useState<{ key: string; apiKey: ApiKeyRecord } | null>(null);
 
   useEffect(() => {
-    const key = localStorage.getItem('ofdata_api_key');
-    if (!key) {
-      router.push('/');
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      setMasterKey(stored);
+      setMasterKeyInput(stored);
+    }
+    setHydrated(true);
+  }, []);
+
+  const apiFetch = useCallback(async (path: string, init: RequestInit = {}) => {
+    if (!masterKey) throw new Error('Master key missing. Please sign in first.');
+    const headers = new Headers(init.headers);
+    headers.set('Authorization', `Bearer ${masterKey}`);
+    if (init.body && !headers.has('content-type')) headers.set('content-type', 'application/json');
+    const res = await fetch(`${API_PREFIX}${path}`, { ...init, headers });
+    if (res.status === 401) {
+      localStorage.removeItem(STORAGE_KEY);
+      setMasterKey('');
+      setMasterKeyInput('');
+      setError('Your master key was rejected. Please sign in again.');
+    }
+    const text = await res.text();
+    if (!text) throw new Error(`Empty response from ${path}`);
+    try {
+      const json = JSON.parse(text);
+      (json as any)._status = res.status;
+      return json;
+    } catch {
+      throw new Error(`Invalid JSON from ${path}: ${text.slice(0, 100)}`);
+    }
+  }, [masterKey]);
+
+  const loadDashboard = useCallback(async () => {
+    if (!masterKey) return;
+    setRefreshing(true);
+    setError(null);
+    try {
+      const [overview, keys] = await Promise.all([
+        apiFetch('/admin/api-keys/overview/stats'),
+        apiFetch('/admin/api-keys?limit=1000&offset=0'),
+      ]);
+      if (!overview.success) throw new Error(overview.error?.message ?? 'Failed to load overview');
+      if (!keys.success) throw new Error(keys.error?.message ?? 'Failed to load API keys');
+      setOverview(overview as OverviewResponse);
+      setApiKeys(((keys as { keys?: ApiKeyRecord[] }).keys ?? []) as ApiKeyRecord[]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load dashboard');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [apiFetch, masterKey]);
+
+  useEffect(() => {
+    if (!hydrated || !masterKey) return;
+    setLoading(true);
+    void loadDashboard();
+  }, [hydrated, loadDashboard, masterKey]);
+
+  const filteredKeys = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return apiKeys;
+    return apiKeys.filter((key) => {
+      return [key.name, key.owner, key.keyPrefix, ...(key.scopes ?? [])].join(' ').toLowerCase().includes(needle);
+    });
+  }, [apiKeys, query]);
+
+  const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmed = masterKeyInput.trim();
+    if (!trimmed) return;
+    localStorage.setItem(STORAGE_KEY, trimmed);
+    setMasterKey(trimmed);
+    setLoading(true);
+    await loadDashboard();
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setMasterKey('');
+    setMasterKeyInput('');
+    setOverview(null);
+    setApiKeys([]);
+    setSelectedKeyId(null);
+    setCreatedSecret(null);
+    setError(null);
+  };
+
+  const createApiKey = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!masterKey) return;
+    const name = createForm.name.trim();
+    const owner = createForm.owner.trim();
+    if (!name || !owner) {
+      setError('Name and owner are required.');
       return;
     }
-
-    // Fetch Initial Stats
-    const fetchStats = async () => {
-      try {
-        const res = await fetch('/api/v1/health/stats');
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(`Stats fetch failed: ${res.status}. Output: ${text.slice(0, 100)}`);
-        }
-        const data = await res.json();
-        setStats(data);
-      } catch (e) {
-        console.error('Telemetry fetch error:', e);
-      }
-    };
-
-    fetchStats();
-    handleSearch('');
-  }, [router]);
-
-  const handleSearch = async (q: string) => {
-    setSearchQuery(q);
-    setIsSearching(true);
+    setCreateBusy(true);
+    setError(null);
     try {
-      const res = await fetch(`/api/v1/foods/search?q=${q || 'a'}&limit=10`);
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Search failed: ${res.status}. Output: ${text.slice(0, 100)}`);
-      }
-      const data = await res.json();
-      setResults(data.data || []);
-    } catch (e) {
-      console.error('Data Explorer error:', e);
-      setResults([]);
+      const scopes = createForm.scopes.split(',').map((s) => s.trim()).filter(Boolean);
+      const payload: Record<string, unknown> = { name, owner };
+      if (scopes.length > 0) payload.scopes = scopes;
+      if (createForm.rateLimitMax.trim()) payload.rateLimitMax = Number(createForm.rateLimitMax);
+      if (createForm.rateLimitWindowSecs.trim()) payload.rateLimitWindowSecs = Number(createForm.rateLimitWindowSecs);
+      if (createForm.expiresInDays.trim()) payload.expiresInDays = Number(createForm.expiresInDays);
+      const res = await apiFetch('/admin/api-keys', { method: 'POST', body: JSON.stringify(payload) });
+      if (res._status !== 201) throw new Error(res?.error?.message ?? 'Failed to create key');
+      setCreatedSecret({ key: (res as any).key as string, apiKey: (res as any).apiKey as ApiKeyRecord });
+      setCreateForm(INITIAL_FORM);
+      await loadDashboard();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create key');
     } finally {
-      setIsSearching(false);
+      setCreateBusy(false);
     }
   };
 
+  const deleteKey = async (id: number) => {
+    if (!confirm('Delete this key permanently?')) return;
+    try {
+      const res = await apiFetch(`/admin/api-keys/${id}`, { method: 'DELETE' });
+      if (!res.success) throw new Error(res?.error?.message ?? 'Failed to delete');
+      setSelectedKeyId((current) => (current === id ? null : current));
+      await loadDashboard();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete');
+    }
+  };
+
+  const stats = overview?.apiKeys;
+  const server = overview?.server;
+  const dataset = overview?.dataset;
+
+  const showKey = async (id: number) => {
+    if (selectedKeyId === id) {
+      setSelectedKeyId(null);
+      setShownKey(null);
+      return;
+    }
+    try {
+      const res = await apiFetch(`/admin/api-keys/${id}`);
+      if (!res.success) throw new Error(res?.error?.message ?? 'Failed to get key');
+      setSelectedKeyId(id);
+      setShownKey((res as any).key as string);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to get key');
+    }
+  };
+
+  if (!hydrated) return <div className="min-h-screen bg-[#0a0a0a]" />;
+
+  if (!masterKey) {
+    return (
+      <main className="min-h-screen bg-[#0a0a0a] text-white flex items-center justify-center p-6">
+        <div className="w-full max-w-md">
+          <div className="mb-8 text-center">
+            <h1 className="font-serif text-4xl mb-2">Control</h1>
+            <p className="text-white/50 text-sm">Admin access only</p>
+          </div>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <input
+              type="password"
+              value={masterKeyInput}
+              onChange={(e) => setMasterKeyInput(e.target.value)}
+              placeholder="Master key"
+              className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-white placeholder:text-white/30 outline-none focus:border-white/30"
+            />
+            <button type="submit" className="w-full bg-white text-black py-4 rounded-2xl font-mono text-sm uppercase tracking-widest">
+              Enter
+            </button>
+          </form>
+          <div className="mt-6 text-center">
+            <Link href="/" className="text-white/40 text-sm hover:text-white/60">← Back</Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-400 font-sans selection:bg-white selection:text-black">
-      {/* 1. MINIMAL SIDEBAR */}
-      <aside className="fixed left-0 top-0 bottom-0 w-64 border-r border-neutral-900 bg-neutral-950 z-20 hidden lg:flex flex-col">
-        <div className="p-8 border-b border-neutral-900 flex items-center gap-3">
-          <div className="w-2 h-2 bg-white" />
-          <span className="font-mono text-[11px] uppercase tracking-[0.3em] text-white font-bold italic">OF_DATA</span>
+    <main className="min-h-screen bg-[#0a0a0a] text-white p-6">
+      <div className="max-w-6xl mx-auto flex gap-6">
+        {/* Sidebar */}
+        <aside className="w-48 shrink-0 space-y-2">
+          <Link href="/" className="block px-4 py-3 rounded-xl text-sm text-white/40 hover:text-white hover:bg-white/5">
+            ← Home
+          </Link>
+          <Link href="/docs" className="block px-4 py-3 rounded-xl text-sm text-white/40 hover:text-white hover:bg-white/5">
+            API Docs
+          </Link>
+          <a href="/openapi.json" target="_blank" className="block px-4 py-3 rounded-xl text-sm text-white/40 hover:text-white hover:bg-white/5">
+            OpenAPI
+          </a>
+        </aside>
+
+        <div className="flex-1 space-y-8">
+          {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="font-serif text-3xl">Control</h1>
+            <div className="flex items-center gap-4 mt-2">
+              <button onClick={handleLogout} className="text-white/40 text-xs hover:text-white/70">Sign out</button>
+            </div>
+          </div>
+          <button onClick={loadDashboard} disabled={refreshing} className="flex items-center gap-2 border border-white/10 px-4 py-2 rounded-full text-sm hover:bg-white/5">
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
         </div>
 
-        <nav className="flex-1 p-6 space-y-8">
-          <div className="space-y-4">
-            <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-600 px-2">Navigation</span>
-            <ul className="space-y-1">
-              <li>
-                <Link href="/dashboard" className="flex items-center gap-3 px-3 py-2 bg-neutral-900 text-white font-mono text-xs uppercase tracking-widest border border-neutral-800">
-                  <LayoutDashboard className="w-3.5 h-3.5" /> Dashboard
-                </Link>
-              </li>
-              <li>
-                <Link href="/docs" className="flex items-center gap-3 px-3 py-2 text-neutral-500 hover:text-white transition-colors font-mono text-xs uppercase tracking-widest">
-                  <BookText className="w-3.5 h-3.5" /> API Docs <ExternalLink className="w-2.5 h-2.5 ml-auto opacity-50" />
-                </Link>
-              </li>
-            </ul>
+        {error && (
+          <div className="p-4 border border-rose-500/30 bg-rose-500/10 text-rose-200 rounded-2xl text-sm">
+            {error}
           </div>
+        )}
 
-          {stats && (
-            <div className="space-y-4">
-              <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-600 px-2">Server_Telemetry</span>
-              <div className="space-y-4 px-2">
-                <div className="space-y-1">
-                  <p className="text-[9px] uppercase text-neutral-700">Memory_Usage</p>
-                  <p className="font-mono text-xs text-neutral-300">{formatBytes(stats.memory.heapUsed)}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[9px] uppercase text-neutral-700">System_Uptime</p>
-                  <p className="font-mono text-xs text-neutral-300">{formatUptime(stats.uptime)}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[9px] uppercase text-neutral-700">Node_Runtime</p>
-                  <p className="font-mono text-xs text-neutral-300">Bun v1.3.12</p>
-                </div>
+        {/* Stats */}
+        <div className="grid grid-cols-4 gap-4">
+          <div className="p-5 rounded-2xl border border-white/10 bg-white/5">
+            <p className="text-white/40 text-xs font-mono uppercase mb-1">Requests</p>
+            <p className="text-2xl">{stats ? formatNumber(stats.totalRequests) : '—'}</p>
+          </div>
+          <div className="p-5 rounded-2xl border border-white/10 bg-white/5">
+            <p className="text-white/40 text-xs font-mono uppercase mb-1">Active Keys</p>
+            <p className="text-2xl">{stats ? formatNumber(stats.active) : '—'}</p>
+          </div>
+          <div className="p-5 rounded-2xl border border-white/10 bg-white/5">
+            <p className="text-white/40 text-xs font-mono uppercase mb-1">Dataset</p>
+            <p className="text-2xl">{dataset ? formatNumber(dataset.foods + dataset.exercises + dataset.supplements) : '—'}</p>
+          </div>
+          <div className="p-5 rounded-2xl border border-white/10 bg-white/5">
+            <p className="text-white/40 text-xs font-mono uppercase mb-1">Uptime</p>
+            <p className="text-2xl">{server ? formatDuration(server.uptime) : '—'}</p>
+          </div>
+        </div>
+
+        {/* Create Key */}
+        <div className="grid grid-cols-3 gap-6">
+          <form onSubmit={createApiKey} className="col-span-1 p-5 rounded-2xl border border-white/10 bg-white/5 space-y-4">
+            <p className="text-xs font-mono uppercase text-white/40">Create Key</p>
+            <input
+              value={createForm.name}
+              onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))}
+              placeholder="Name"
+              className="w-full bg-transparent border border-white/10 rounded-xl px-3 py-2 text-sm outline-none focus:border-white/30"
+            />
+            <input
+              value={createForm.owner}
+              onChange={(e) => setCreateForm((p) => ({ ...p, owner: e.target.value }))}
+              placeholder="Owner"
+              className="w-full bg-transparent border border-white/10 rounded-xl px-3 py-2 text-sm outline-none focus:border-white/30"
+            />
+            <button type="submit" disabled={createBusy} className="w-full bg-white text-black py-3 rounded-xl text-sm font-medium disabled:opacity-50">
+              {createBusy ? 'Creating...' : 'Create Key'}
+            </button>
+          </form>
+
+          {/* Keys Table */}
+          <div className="col-span-2 space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Filter keys..."
+                  className="w-full bg-transparent border border-white/10 rounded-xl py-2 pl-10 pr-3 text-sm outline-none focus:border-white/30"
+                />
               </div>
             </div>
-          )}
-        </nav>
 
-        <div className="p-8 border-t border-neutral-900">
-          <Link href="/" className="font-mono text-[10px] uppercase tracking-widest text-neutral-600 hover:text-white transition-colors">
-            [ Terminate_Session ]
-          </Link>
-        </div>
-      </aside>
-
-      {/* 2. MAIN CONTENT */}
-      <main className="lg:ml-64 p-6 md:p-12 lg:p-16 max-w-screen-2xl mx-auto space-y-16">
-        
-        {/* Header Section */}
-        <header className="space-y-6">
-          <h1 className="font-serif text-5xl md:text-7xl text-white tracking-tight">Infrastructure.</h1>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 py-8 border-y border-neutral-900">
-             <div className="space-y-1">
-                <p className="text-[9px] uppercase text-neutral-600 tracking-[0.2em]">Total_Foods</p>
-                <p className="text-3xl text-white font-serif">{stats?.counts.foods.toLocaleString() || '---'}</p>
-             </div>
-             <div className="space-y-1">
-                <p className="text-[9px] uppercase text-neutral-600 tracking-[0.2em]">Exercises</p>
-                <p className="text-3xl text-white font-serif">{stats?.counts.exercises.toLocaleString() || '---'}</p>
-             </div>
-             <div className="space-y-1">
-                <p className="text-[9px] uppercase text-neutral-600 tracking-[0.2em]">Supplements</p>
-                <p className="text-3xl text-white font-serif">{stats?.counts.supplements.toLocaleString() || '---'}</p>
-             </div>
-             <div className="space-y-1">
-                <p className="text-[9px] uppercase text-neutral-600 tracking-[0.2em]">Infrastructure</p>
-                <p className="text-3xl text-emerald-500 font-serif">ACTIVE</p>
-             </div>
-          </div>
-        </header>
-
-        {/* Data Explorer Section */}
-        <section className="space-y-8">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-            <div className="space-y-2">
-              <h2 className="font-mono text-xs uppercase text-white tracking-[0.3em]">Data_Explorer</h2>
-              <p className="text-sm text-neutral-500">Live search across the universal registry.</p>
+            <div className="border border-white/10 rounded-2xl overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-white/5 text-white/40 text-xs font-mono uppercase">
+                  <tr>
+                    <th className="text-left p-3 font-normal">Name</th>
+                    <th className="text-left p-3 font-normal">Prefix</th>
+                    <th className="text-right p-3 font-normal">Requests</th>
+                    <th className="text-right p-3 font-normal">Status</th>
+                    <th className="text-right p-3 font-normal">Last Used</th>
+                    <th className="w-8"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {loading && apiKeys.length === 0 ? (
+                    <tr><td colSpan={6} className="p-8 text-center text-white/40">Loading...</td></tr>
+                  ) : filteredKeys.length === 0 ? (
+                    <tr><td colSpan={6} className="p-8 text-center text-white/40">No keys</td></tr>
+                  ) : (
+                    filteredKeys.map((key) => {
+                      const isActive = !key.revoked && (!key.expiresAt || new Date(key.expiresAt).getTime() > Date.now());
+                      return (
+                        <tr key={key.id} className="hover:bg-white/5">
+                          <td className="p-3">
+                            <div className="font-medium">{key.name}</div>
+                            <div className="text-white/40 text-xs">{key.owner}</div>
+                          </td>
+                          <td className="p-3 font-mono text-xs">{key.keyPrefix}</td>
+                          <td className="p-3 text-right font-mono text-xs">{formatNumber(key.requestCount)}</td>
+                          <td className="p-3 text-right">
+                            <span className={`text-xs ${isActive ? 'text-emerald-400' : 'text-white/40'}`}>
+                              {isActive ? 'Active' : 'Revoked'}
+                            </span>
+                          </td>
+                          <td className="p-3 text-right text-white/50 text-xs">{relativeTime(key.lastUsedAt)}</td>
+                          <td className="p-3 text-right">
+                            <button onClick={() => showKey(key.id)} className="text-white/40 hover:text-white text-xs mr-2" title="Show">
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => deleteKey(key.id)} className="text-white/40 hover:text-rose-400 text-xs" title="Delete">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
-            
-            <div className="relative group w-full md:w-96">
-              <Search className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${isSearching ? 'text-white animate-pulse' : 'text-neutral-700'}`} />
-              <input 
-                type="text"
-                placeholder="SEARCH_REGISTRY..."
-                className="w-full bg-transparent border-b border-neutral-800 py-3 pl-12 font-mono text-sm text-white focus:border-white transition-colors outline-none uppercase tracking-widest"
-                value={searchQuery}
-                onChange={(e) => handleSearch(e.target.value)}
-              />
-            </div>
-          </div>
 
-          <div className="flex flex-col border border-neutral-900">
-            {results.map((r, i) => (
-              <ExplorerRow key={r.id} record={r} />
-            ))}
-            {results.length === 0 && !isSearching && (
-              <div className="py-24 text-center font-mono text-[10px] uppercase text-neutral-700 tracking-[0.5em]">
-                No_Data_Matches_Query
+            {shownKey && (
+              <div className="mt-4 p-4 border border-white/10 rounded-xl bg-white/5">
+                <p className="text-white/60 text-xs mb-2">Full Key</p>
+                <code className="text-sm font-mono text-emerald-400 break-all">{shownKey}</code>
               </div>
             )}
           </div>
-        </section>
+        </div>
+        </div>
+      </div>
 
-        {/* Usage Analytics Placeholder */}
-        <section className="space-y-8">
-          <div className="space-y-2">
-            <h2 className="font-mono text-xs uppercase text-white tracking-[0.3em]">Usage_Analytics</h2>
-            <p className="text-sm text-neutral-500">API throughput and endpoint popularity over time.</p>
+      {/* Created Secret Modal */}
+      <AnimatePresence>
+        {createdSecret && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/80" onClick={() => setCreatedSecret(null)} />
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="relative bg-[#0d0d0d] border border-white/10 p-6 rounded-2xl w-full max-w-md">
+              <p className="text-xs font-mono uppercase text-emerald-400 mb-4">Key Created</p>
+              <div className="bg-black/50 border border-white/10 p-3 rounded-xl mb-4 flex items-center gap-2">
+                <code className="flex-1 text-sm font-mono break-all">{createdSecret.key}</code>
+                <button onClick={() => navigator.clipboard.writeText(createdSecret.key)} className="shrink-0">
+                  <Copy className="w-4 h-4 text-white/40" />
+                </button>
+              </div>
+              <button onClick={() => setCreatedSecret(null)} className="w-full bg-white text-black py-3 rounded-xl text-sm">Close</button>
+            </motion.div>
           </div>
-          <div className="h-64 border border-neutral-900 bg-neutral-950 flex flex-col items-center justify-center space-y-4">
-             <Activity className="w-8 h-8 text-neutral-800" />
-             <p className="font-mono text-[9px] text-neutral-700 uppercase tracking-widest italic">Temporal tracking disabled in developer_build</p>
-          </div>
-        </section>
-
-      </main>
-    </div>
+        )}
+      </AnimatePresence>
+    </main>
   );
 }

@@ -49,7 +49,7 @@ export async function apiKeyAuthMiddleware(c: Context, next: Next) {
 
   // Allow health checks, docs, OpenAPI spec, and admin routes without an API key
   // (admin routes enforce their own MASTER_KEY auth)
-  const publicPaths = ['/health', '/health/db', '/docs', '/openapi.json'];
+  const publicPaths = ['/health', '/health/db', '/swagger-docs', '/docs', '/openapi.json'];
   const prefix = env.API_PREFIX;
   const isPublic = publicPaths.some(
     (p) => path === `${prefix}${p}` || path === p,
