@@ -1,16 +1,14 @@
 import { $ } from 'bun';
 import { foodsTable } from '@repo/db/src/schema';
-import { config } from 'dotenv';
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/bun-sql';
 import * as XLSX from 'xlsx';
 import { insertFoodChunk } from '../utils/foods';
 import { getLogger } from '../utils/logger';
 import { insertFoodNutrientLinks, syncNutrientMeta, type FoodNutrientLink } from '../utils/nutrients';
+import { env } from '@repo/env-manager';
 
-config({ path: new URL('../../../.env', import.meta.url).pathname, quiet: true });
-
-const DATABASE_URL = process.env.DATABASE_URL;
+const DATABASE_URL = env.DATABASE_URL;
 const DATA_SOURCE = 'ciqual';
 // CIQUAL 2020 English Excel file from official ANSES source
 const CIQUAL_URL =

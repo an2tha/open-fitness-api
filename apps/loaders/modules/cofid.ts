@@ -1,7 +1,6 @@
 import { type NewFood } from '@repo/db';
 import { foodsTable } from '@repo/db/src/schema';
 import { $ } from 'bun';
-import { config } from 'dotenv';
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/bun-sql';
 import { insertFoodChunk } from '../utils/foods';
@@ -12,10 +11,9 @@ import {
   type FoodNutrientLink,
   type NutrientMeta,
 } from '../utils/nutrients';
+import { env } from '@repo/env-manager';
 
-config({ path: new URL('../../../.env', import.meta.url).pathname, quiet: true });
-
-const DATABASE_URL = process.env.DATABASE_URL;
+const DATABASE_URL = env.DATABASE_URL;
 const DATA_SOURCE = 'cofid';
 const COFID_URL =
   'https://assets.publishing.service.gov.uk/media/60538b91e90e07527df82ae4/McCance_Widdowsons_Composition_of_Foods_Integrated_Dataset_2021..xlsx';

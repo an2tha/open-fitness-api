@@ -1,15 +1,13 @@
 import { foodsTable } from '@repo/db/src/schema';
 import { $ } from 'bun';
-import { config } from 'dotenv';
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/bun-sql';
 import { insertFoodChunk } from '../utils/foods';
 import { getLogger } from '../utils/logger';
 import { insertFoodNutrientLinks, syncNutrientMeta, type FoodNutrientLink } from '../utils/nutrients';
+import { env } from '@repo/env-manager';
 
-config({ path: new URL('../../../.env', import.meta.url).pathname, quiet: true });
-
-const DATABASE_URL = process.env.DATABASE_URL;
+const DATABASE_URL = env.DATABASE_URL;
 const DATA_SOURCE = 'cnf';
 const CNF_URL =
   'https://www.canada.ca/content/dam/hc-sc/migration/hc-sc/fn-an/alt_formats/zip/nutrition/fiche-nutri-data/cnf-fcen-csv.zip';

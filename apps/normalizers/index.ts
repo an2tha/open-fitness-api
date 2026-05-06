@@ -3,14 +3,10 @@ import { getLogger, flushLogger } from './utils/logger';
 import { normalizeNutrients } from './modules/nutrients';
 import { normalizeWada } from './modules/wada';
 import { mergeNutrients, mergeExercises } from './modules/merge';
-import { config } from 'dotenv';
-import path from 'node:path';
+import { env } from '@repo/env-manager';
 
-config({
-  path: path.resolve(import.meta.dirname, '../../.env'),
-  // @ts-expect-error - quiet is not in DotenvConfigOptions but supported by some versions/wrappers
-  quiet: true,
-});
+// Custom env vars not in env-manager schema - access directly from process.env
+// Note: @repo/env-manager already loaded .env via dotnet
 
 if (!process.env.AI_NORMALIZE) {
   throw Error('Please enable AI_NORMALIZE in .env to continue!');
@@ -20,7 +16,7 @@ const verboseFlag = flag({
   long: 'verbose',
   short: 'v',
   description: 'Output detailed log information including debug-level messages.',
-  onMissing: () => process.env.NODE_ENV === 'development',
+  onMissing: () => env.NODE_ENV === 'development',
 });
 
 const nutrientsCmd = command({

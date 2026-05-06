@@ -1,10 +1,29 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
-import { env } from '../lib/env';
+import { env } from "@repo/env-manager";
 import foods from './foods';
 import exercises from './exercises';
 import supplements from './supplements';
 import nutrients from './nutrients';
 import adminApiKeys from './admin/api-keys';
+import { auth, authApi } from '../lib/auth';
+
+// Create a wrapper app for better-auth handler
+const authApp = new OpenAPIHono();
+
+// Use the better-auth handler to catch all auth requests
+authApp.all('*', async (c) => {
+  const url = c.req.url;
+  const body = c.req.method !== 'GET' && c.req.method !== 'HEAD' ? await c.req.text() : undefined;
+  const req = new Request(url, {
+    method: c.req.method,
+    headers: c.req.headers,
+    body: body || undefined,
+  });
+  const response = await auth.handler(req);
+  const responseBody = await response.text();
+  const setCookie = response.headers.get('Set-Cookie');
+  return c.text(responseBody, response.status, setCookie ? { 'Set-Cookie': setCookie } : {});
+});
 
 const routes = new OpenAPIHono();
 
@@ -112,6 +131,7 @@ routes.route('/foods', foods);
 routes.route('/exercises', exercises);
 routes.route('/supplements', supplements);
 routes.route('/nutrients', nutrients);
+routes.route('/auth', authApp);
 routes.route('/admin/api-keys', adminApiKeys);
 
 routes.get('/openapi.json', (c) => {

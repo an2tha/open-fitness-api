@@ -1,8 +1,4 @@
-import { config } from 'dotenv';
-import path from 'node:path';
-config({ path: path.resolve('../../.env'), quiet: true });
-
-// Now import db after env is loaded
+import { env } from '@repo/env-manager';
 import { db } from '@repo/db';
 import { apiKeysTable } from '@repo/db/src/schema';
 
@@ -16,8 +12,6 @@ process.env.API_KEY_AUTH_ENABLED = 'false';
 process.env.SWAGGER_ENABLED = 'true';
 
 const { default: app } = await import('../src/app');
-const { env } = await import('../src/lib/env');
-
 const prefix = '/api/v1';
 const masterAuthHeader = `Bearer ${env.MASTER_KEY}`;
 

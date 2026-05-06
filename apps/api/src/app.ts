@@ -3,7 +3,7 @@ import { requestIdMiddleware, corsMiddleware, securityHeaders, rateLimitMiddlewa
 import { apiKeyAuthMiddleware } from './middleware/api-key-auth';
 import { logger } from './middleware/logger';
 import routes from './routes';
-import { env } from './lib/env';
+import { env } from "@repo/env-manager";
 import { AppError, fromZodError } from './lib/error';
 
 function handleAppError(error: unknown, c: Context) {

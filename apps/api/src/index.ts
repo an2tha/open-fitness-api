@@ -1,6 +1,6 @@
 import { serve } from 'bun';
 import app from './app';
-import { env, isProduction } from './lib/env';
+import { env, isProduction } from '@repo/env-manager';
 
 const port = parseInt(env.API_PORT);
 

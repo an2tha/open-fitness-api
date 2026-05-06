@@ -1,14 +1,12 @@
 import { type NewFood } from '@repo/db';
 import { foodsTable } from '@repo/db/src/schema';
-import { config } from 'dotenv';
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/bun-sql';
 import { insertFoodChunk } from '../utils/foods';
 import { getLogger } from '../utils/logger';
+import { env } from '@repo/env-manager';
 
-config({ path: new URL('../../../.env', import.meta.url).pathname, quiet: true });
-
-const DATABASE_URL = process.env.DATABASE_URL;
+const DATABASE_URL = env.DATABASE_URL;
 const DATA_SOURCE = 'eambrosia';
 const EAMBROSIA_URL = 'https://webgate.ec.europa.eu/eambrosia-api/api/v1/geographical-indications';
 const DATA_PATH = '/tmp/eambrosia.json';

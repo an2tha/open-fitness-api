@@ -1,16 +1,11 @@
-import { config } from 'dotenv';
-import path from 'node:path';
 import { createOpenAI } from '@ai-sdk/openai';
 import { generateObject as sdkGenerateObject, streamObject as sdkStreamObject } from 'ai';
 import { z } from 'zod';
 import search from '@inquirer/search';
 import { getLogger } from '../utils/logger';
+import { env } from '@repo/env-manager';
 
-config({
-  path: path.resolve(import.meta.dirname, '../../../.env'),
-  // @ts-expect-error - quiet is not in DotenvConfigOptions but supported by some versions/wrappers
-  quiet: true,
-});
+// Custom AI env vars not in env-manager schema - loaded via @repo/env-manager
 
 let selectedModel: string | null = null;
 

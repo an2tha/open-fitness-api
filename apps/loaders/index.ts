@@ -13,6 +13,7 @@ import { loadUsdaFoods } from './modules/usda';
 import { loadSwissFoods } from './modules/swiss';
 import { flushLogger, getLogger } from './utils/logger';
 import { foodsTable, supplementsTable } from '@repo/db/src/schema';
+import { env } from '@repo/env-manager';
 
 const purgeFlag = flag({
   long: 'purge',
@@ -23,7 +24,7 @@ const verboseFlag = flag({
   long: 'verbose',
   short: 'v',
   description: 'Output detailed log information.',
-  onMissing: () => process.env.NODE_ENV === 'development',
+  onMissing: () => env.NODE_ENV === 'development',
 });
 
 const confirmPurge = async (message: string) => {
@@ -48,7 +49,7 @@ const safeRun = async (id: string, fn: () => Promise<any>) => {
   }
 };
 
-const getDb = () => drizzle(new Bun.SQL(process.env.DATABASE_URL!));
+const getDb = () => drizzle(new Bun.SQL(env.DATABASE_URL));
 
 // --- Purge Logic ---
 
@@ -66,13 +67,13 @@ const purgeSource = async (category: 'foods' | 'supplements' | 'exercises', sour
   } else if (category === 'exercises') {
     // Exercises currently don't have a datasource column on the main table,
     // we'll truncate for now as they are small.
-    const sql = new Bun.SQL(process.env.DATABASE_URL!);
+    const sql = new Bun.SQL(env.DATABASE_URL);
     await sql`truncate table exercises, muscles, equipment, exercise_muscles, exercise_equipment, movement_patterns, exercise_movement_patterns restart identity cascade`;
   }
 };
 
 const purgeCategory = async (category: 'foods' | 'supplements' | 'exercises' | 'all') => {
-  const sql = new Bun.SQL(process.env.DATABASE_URL!);
+  const sql = new Bun.SQL(env.DATABASE_URL);
   const logger = getLogger();
   logger.info(`purging entire category: ${category}`);
 

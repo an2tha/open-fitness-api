@@ -1,15 +1,13 @@
 import { foodsTable } from '@repo/db/src/schema';
 import { $ } from 'bun';
-import { config } from 'dotenv';
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/bun-sql';
 import { insertFoodChunk } from '../utils/foods';
 import { getLogger } from '../utils/logger';
 import { insertFoodNutrientLinks, syncNutrientMeta, type FoodNutrientLink } from '../utils/nutrients';
+import { env } from '@repo/env-manager';
 
-config({ path: new URL('../../../.env', import.meta.url).pathname, quiet: true });
-
-const DATABASE_URL = process.env.DATABASE_URL;
+const DATABASE_URL = env.DATABASE_URL;
 const DATA_SOURCE = 'usda';
 const USDA_ZIP_URL = 'https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_csv_2026-04-30.zip';
 const ZIP_PATH = '/tmp/usda-fdc.zip';

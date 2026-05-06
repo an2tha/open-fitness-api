@@ -4,7 +4,7 @@ import { apiKeysTable } from '@repo/db/src/schema';
 import { eq, sql } from 'drizzle-orm';
 import { hashApiKey } from '../lib/api-key';
 import { UnauthorizedError, ForbiddenError, RateLimitError } from '../lib/error';
-import { env } from '../lib/env';
+import { env } from '@repo/env-manager';
 
 /**
  * Extracts the API key from the request.

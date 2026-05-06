@@ -1,18 +1,11 @@
-import 'dotenv/config';
-import { config } from 'dotenv';
 import { defineConfig } from 'drizzle-kit';
-import { existsSync } from 'fs';
-
-const ENV_PATH = '../../.env';
-if (existsSync(ENV_PATH)) {
-  config({ path: ENV_PATH });
-}
+import { env } from '@repo/env-manager';
 
 export default defineConfig({
   out: './drizzle',
   schema: '../../packages/db/src/schema.ts',
   dialect: 'postgresql',
   dbCredentials: {
-    url: process.env.DATABASE_URL!,
+    url: env.DATABASE_URL,
   },
 });

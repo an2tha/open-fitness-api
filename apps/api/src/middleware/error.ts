@@ -1,6 +1,6 @@
 import { Context, Next } from 'hono';
 import { AppError, fromZodError } from '../lib/error';
-import { env } from '../lib/env';
+import { env } from "@repo/env-manager";
 
 export async function errorMiddleware(c: Context, next: Next) {
   try {

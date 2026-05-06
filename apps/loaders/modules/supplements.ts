@@ -5,14 +5,12 @@ import {
   type NewSupplement,
 } from '@repo/db/src/schema';
 import { $ } from 'bun';
-import { config } from 'dotenv';
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/bun-sql';
 import { getLogger } from '../utils/logger';
+import { env } from '@repo/env-manager';
 
-config({ path: new URL('../../../.env', import.meta.url).pathname, quiet: true });
-
-const DATABASE_URL = process.env.DATABASE_URL;
+const DATABASE_URL = env.DATABASE_URL;
 const DATA_SOURCE = 'dsld';
 const ZIP_PATH = '/tmp/supplements-dsld.zip';
 const EXTRACT_PATH = '/tmp/supplements-dsld';

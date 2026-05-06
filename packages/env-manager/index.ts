@@ -3,7 +3,7 @@ import path from 'node:path';
 import { z } from 'zod';
 
 config({
-  path: path.resolve(import.meta.dirname, '../../../../.env'),
+  path: path.resolve(import.meta.dirname, '../../.env'),
   quiet: true,
 });
 
@@ -33,7 +33,7 @@ const envSchema = z.object({
 const _env = envSchema.safeParse(process.env);
 
 if (!_env.success) {
-  console.error('❌ Invalid environment variables:');
+  console.error('Invalid environment variables:');
   console.error(_env.error.flatten().fieldErrors);
   process.exit(1);
 }

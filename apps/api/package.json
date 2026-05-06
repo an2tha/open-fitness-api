@@ -13,6 +13,7 @@
     "@better-auth/drizzle-adapter": "^1.6.9",
     "@hono/zod-openapi": "^0.18.4",
     "@repo/db": "workspace:*",
+    "@repo/env-manager": "workspace:*",
     "better-auth": "^1.6.9",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",

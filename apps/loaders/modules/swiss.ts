@@ -4,6 +4,7 @@ import { drizzle } from 'drizzle-orm/bun-sql';
 import { sql } from 'drizzle-orm';
 import { getLogger } from '../utils/logger';
 import * as XLSX from 'xlsx';
+import { env } from '@repo/env-manager';
 
 const DATA_SOURCE = 'swiss';
 const DOWNLOAD_URL =
@@ -12,7 +13,7 @@ const FILE_PATH = '/tmp/swiss_food_data.xlsx';
 
 export const loadSwissFoods = async () => {
   const logger = getLogger();
-  const sqlClient = new Bun.SQL(process.env.DATABASE_URL!);
+  const sqlClient = new Bun.SQL(env.DATABASE_URL);
   const db = drizzle(sqlClient);
 
   // Clear cache before downloading

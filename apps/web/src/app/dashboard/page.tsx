@@ -67,7 +67,7 @@ type CreateFormState = {
 };
 
 const API_PREFIX = '/api/v1';
-const STORAGE_KEY = 'ofdata_master_key';
+const SESSION_KEY = 'ofdata_session_token';
 
 const INITIAL_FORM: CreateFormState = { name: '', owner: '', scopes: '', rateLimitMax: '', rateLimitWindowSecs: '', expiresInDays: '' };
 
@@ -105,8 +105,8 @@ function splitScopes(scopes: string[] | null | undefined) {
 export default function DashboardPage() {
   const router = useRouter();
   const [hydrated, setHydrated] = useState(false);
-  const [masterKey, setMasterKey] = useState('');
-  const [masterKeyInput, setMasterKeyInput] = useState('');
+  const [sessionToken, setSessionToken] = useState('');
+  const [sessionTokenInput, setSessionTokenInput] = useState('');
   const [overview, setOverview] = useState<OverviewResponse | null>(null);
   const [apiKeys, setApiKeys] = useState<ApiKeyRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -120,25 +120,25 @@ export default function DashboardPage() {
   const [createdSecret, setCreatedSecret] = useState<{ key: string; apiKey: ApiKeyRecord } | null>(null);
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(SESSION_KEY);
     if (stored) {
-      setMasterKey(stored);
-      setMasterKeyInput(stored);
+      setSessionToken(stored);
+      setSessionTokenInput(stored);
     }
     setHydrated(true);
   }, []);
 
   const apiFetch = useCallback(async (path: string, init: RequestInit = {}) => {
-    if (!masterKey) throw new Error('Master key missing. Please sign in first.');
+    if (!sessionToken) throw new Error('Session missing. Please sign in first.');
     const headers = new Headers(init.headers);
-    headers.set('Authorization', `Bearer ${masterKey}`);
+    headers.set('Authorization', `Bearer ${sessionToken}`);
     if (init.body && !headers.has('content-type')) headers.set('content-type', 'application/json');
     const res = await fetch(`${API_PREFIX}${path}`, { ...init, headers });
     if (res.status === 401) {
-      localStorage.removeItem(STORAGE_KEY);
-      setMasterKey('');
-      setMasterKeyInput('');
-      setError('Your master key was rejected. Please sign in again.');
+      localStorage.removeItem(SESSION_KEY);
+      setSessionToken('');
+      setSessionTokenInput('');
+      setError('Your session was rejected. Please sign in again.');
     }
     const text = await res.text();
     if (!text) throw new Error(`Empty response from ${path}`);
@@ -149,10 +149,10 @@ export default function DashboardPage() {
     } catch {
       throw new Error(`Invalid JSON from ${path}: ${text.slice(0, 100)}`);
     }
-  }, [masterKey]);
+  }, [sessionToken]);
 
   const loadDashboard = useCallback(async () => {
-    if (!masterKey) return;
+    if (!sessionToken) return;
     setRefreshing(true);
     setError(null);
     try {
@@ -170,13 +170,13 @@ export default function DashboardPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [apiFetch, masterKey]);
+  }, [apiFetch, sessionToken]);
 
   useEffect(() => {
-    if (!hydrated || !masterKey) return;
+    if (!hydrated || !sessionToken) return;
     setLoading(true);
     void loadDashboard();
-  }, [hydrated, loadDashboard, masterKey]);
+  }, [hydrated, loadDashboard, sessionToken]);
 
   const filteredKeys = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -188,28 +188,38 @@ export default function DashboardPage() {
 
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const trimmed = masterKeyInput.trim();
+    const trimmed = sessionTokenInput.trim();
     if (!trimmed) return;
-    localStorage.setItem(STORAGE_KEY, trimmed);
-    setMasterKey(trimmed);
+    localStorage.setItem(SESSION_KEY, trimmed);
+    setSessionToken(trimmed);
     setLoading(true);
     await loadDashboard();
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem(STORAGE_KEY);
-    setMasterKey('');
-    setMasterKeyInput('');
+  const handleLogout = async () => {
+    // Try to sign out from API
+    try {
+      await fetch(`${API_PREFIX}/auth/sign-out`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      });
+    } catch {
+      // Ignore errors
+    }
+    localStorage.removeItem(SESSION_KEY);
+    setSessionToken('');
+    setSessionTokenInput('');
     setOverview(null);
     setApiKeys([]);
     setSelectedKeyId(null);
     setCreatedSecret(null);
     setError(null);
+    router.push('/auth');
   };
 
   const createApiKey = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!masterKey) return;
+    if (!sessionToken) return;
     const name = createForm.name.trim();
     const owner = createForm.owner.trim();
     if (!name || !owner) {
@@ -271,26 +281,22 @@ export default function DashboardPage() {
 
   if (!hydrated) return <div className="min-h-screen bg-[#0a0a0a]" />;
 
-  if (!masterKey) {
+  if (!sessionToken) {
     return (
       <main className="min-h-screen bg-[#0a0a0a] text-white flex items-center justify-center p-6">
         <div className="w-full max-w-md">
           <div className="mb-8 text-center">
             <h1 className="font-serif text-4xl mb-2">Control</h1>
-            <p className="text-white/50 text-sm">Admin access only</p>
+            <p className="text-white/50 text-sm">Sign in to continue</p>
           </div>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <input
-              type="password"
-              value={masterKeyInput}
-              onChange={(e) => setMasterKeyInput(e.target.value)}
-              placeholder="Master key"
-              className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-white placeholder:text-white/30 outline-none focus:border-white/30"
-            />
-            <button type="submit" className="w-full bg-white text-black py-4 rounded-2xl font-mono text-sm uppercase tracking-widest">
-              Enter
-            </button>
-          </form>
+          <div className="space-y-4">
+            <Link
+              href="/auth"
+              className="block w-full bg-white text-black py-4 rounded-2xl font-mono text-sm uppercase tracking-widest text-center"
+            >
+              Sign In
+            </Link>
+          </div>
           <div className="mt-6 text-center">
             <Link href="/" className="text-white/40 text-sm hover:text-white/60">← Back</Link>
           </div>
