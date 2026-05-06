@@ -3,9 +3,19 @@
   "type": "module",
   "license": "Apache-2.0",
   "scripts": {
-    "build": "turbo run build",
-    "start": "bun run scripts/setup.ts",
+    "build": "docker compose build --no-cache",
+    "setup": "bun run scripts/setup.ts",
+    "start": "docker compose up -d",
+    "start:db": "docker compose up -d db",
+    "stop": "docker compose stop",
+    "delete": "docker compose down -v",
+    "load": "bun run ./apps/loaders/index.ts",
+    "load:verbose": "bun run ./apps/loaders/index.ts",
+    "normalize": "bun run --filter ofdata-normalizer start",
     "dev": "turbo run dev",
+    "turbo:dev": "turbo run dev",
+    "docker:dev": "docker compose -f docker-compose.dev.yml up --watch",
+    "docker:logs": "docker compose -f docker-compose.dev.yml logs -f",
     "lint": "eslint . --fix && prettier --check .",
     "test": "turbo run test",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
@@ -33,6 +43,7 @@
   ],
   "dependencies": {
     "@types/node": "^25.6.0",
-    "nanoid": "^5.1.9"
+    "nanoid": "^5.1.9",
+    "pi": "^2.0.5"
   }
 }

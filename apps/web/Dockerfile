@@ -1,9 +1,5 @@
-# Use the official Bun image
 FROM oven/bun:1.3.12 AS base
 WORKDIR /usr/src/app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y unzip curl && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies
 COPY package.json bun.lock ./
@@ -20,8 +16,11 @@ RUN bun install --frozen-lockfile
 # Copy source code
 COPY . .
 
-# Expose the API port
-EXPOSE 3001/tcp
+# Build Next.js app
+WORKDIR /usr/src/app/apps/web
+ENV NODE_ENV=production
+RUN bun run build
 
-# Run the API from source
-CMD [ "bun", "run", "apps/api/src/index.ts" ]
+# Run the app
+EXPOSE 3000
+CMD ["bun", "run", "start"]

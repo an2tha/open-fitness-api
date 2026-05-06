@@ -7,7 +7,16 @@ services:
       - '3000:3000'
     environment:
       - API_URL=http://api:3001
-      - NODE_ENV=production
+      - NODE_ENV=development
+    develop:
+      watch:
+        - action: sync
+          path: .
+          target: /usr/src/app
+          ignore:
+            - node_modules/
+            - .next/
+    command: bun run --filter web dev
     networks:
       - fitness_net
     depends_on:
@@ -21,10 +30,16 @@ services:
       - '3001:3001'
     environment:
       - DATABASE_URL=postgres://user:password@db:5432/fitnessdata
-      - NODE_ENV=production
+      - NODE_ENV=development
       - PORT=3001
-      - RATE_LIMIT_ENABLED=true
-      - RATE_LIMIT_MAX=1000
+    develop:
+      watch:
+        - action: sync
+          path: .
+          target: /usr/src/app
+          ignore:
+            - node_modules/
+    command: bun run --filter api dev
     networks:
       - fitness_net
     depends_on:

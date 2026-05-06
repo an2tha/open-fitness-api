@@ -9,3 +9,4 @@ export * from './schemas/muscles';
 export * from './schemas/equipment';
 export * from './schemas/movement_patterns';
 export * from './schemas/supplements';
+export * from './schemas/api_keys';

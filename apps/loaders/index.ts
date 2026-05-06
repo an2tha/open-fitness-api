@@ -208,7 +208,7 @@ const supplementsCmd = command({
 });
 
 const app = subcommands({
-  name: 'ofdata-normalizer',
+  name: 'ofdata-loader',
   cmds: { all: allCmd, foods: foodsCmd, exercises: exercisesCmd, supplements: supplementsCmd },
 });
 

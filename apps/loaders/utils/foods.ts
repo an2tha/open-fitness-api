@@ -34,7 +34,7 @@ export const insertFoodChunk = async (sql: SqlClient, foods: NewFood[]) => {
     .join(',');
 
   return sql.unsafe<{ id: number; externalId: string }>(
-    `insert into foods ("externalId","dataSource","name","brand","category","servingSize","servingUnit","calories","protein","fat","carbohydrates","fiber","sugar","sodium") 
+    `insert into "foods" ("externalId","dataSource","name","brand","category","servingSize","servingUnit","calories","protein","fat","carbohydrates","fiber","sugar","sodium") 
      values ${values} 
      returning id, "externalId"`,
   );

@@ -68,38 +68,44 @@ routes.openapi(
   },
 );
 
-if (env.SWAGGER_ENABLED === 'true') {
-  routes.get('/docs', (c) => {
-    return c.html(`
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>API Documentation</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.11.0/swagger-ui.css">
-</head>
-<body>
-  <div id="swagger-ui"></div>
-  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.11.0/swagger-ui-bundle.js" charset="UTF-8"></script>
-  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.11.0/swagger-ui-standalone-preset.js" charset="UTF-8"></script>
-  <script>
-    window.onload = () => {
-      window.SwaggerUIBundle({
-        url: '/api/v1/openapi.json',
-        dom_id: '#swagger-ui',
-        presets: [
-          window.SwaggerUIBundle.presets.apis,
-          window.SwaggerUIStandalonePreset
-        ],
-        layout: 'StandaloneLayout'
+routes.openapi(
+  {
+    method: 'get',
+    path: '/health/stats',
+    tags: ['Health'],
+    summary: 'Detailed system statistics',
+    responses: {
+      200: {
+        description: 'Detailed system statistics',
+      },
+    },
+  },
+  async (c) => {
+    const { db } = await import('../lib/db');
+    const { foodsTable, exercisesTable, supplementsTable } = await import('@repo/db/src/schema');
+    const { count } = await import('drizzle-orm');
+
+    try {
+      const [foodCount] = await db.select({ value: count() }).from(foodsTable);
+      const [exerciseCount] = await db.select({ value: count() }).from(exercisesTable);
+      const [supplementCount] = await db.select({ value: count() }).from(supplementsTable);
+
+      return c.json({
+        uptime: Math.floor(process.uptime()),
+        memory: process.memoryUsage(),
+        counts: {
+          foods: foodCount?.value ?? 0,
+          exercises: exerciseCount?.value ?? 0,
+          supplements: supplementCount?.value ?? 0,
+        },
+        node_version: process.version,
+        timestamp: new Date().toISOString(),
       });
-    };
-  </script>
-</body>
-</html>`);
-  });
-}
+    } catch (e) {
+      return c.json({ error: 'Failed to fetch stats', details: String(e) }, 500);
+    }
+  },
+);
 
 routes.route('/foods', foods);
 

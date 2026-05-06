@@ -26,9 +26,9 @@ export const syncNutrientMeta = async (sql: SqlClient, items: NutrientMeta[]) =>
   const values = unique.map((i) => `(${literal(i.name)}, ${literal(i.unit)})`).join(',');
 
   // Insert missing and get all IDs
-  await sql.unsafe(`insert into nutrients (name, unit) values ${values} on conflict do nothing`);
+  await sql.unsafe(`insert into "nutrients" (name, unit) values ${values} on conflict do nothing`);
 
-  const rows = await sql.unsafe<{ id: number; name: string; unit: string }>(`select id, name, unit from nutrients`);
+  const rows = await sql.unsafe<{ id: number; name: string; unit: string }>(`select id, name, unit from "nutrients"`);
 
   return new Map(rows.map((r) => [`${r.name}|${r.unit}`, r.id]));
 };
@@ -39,6 +39,6 @@ export const insertFoodNutrientLinks = async (sql: SqlClient, links: FoodNutrien
   const values = links.map((l) => `(${l.foodId}, ${l.nutrientId}, ${literal(l.value)})`).join(',');
 
   return sql.unsafe(
-    `insert into food_nutrients ("foodId", "nutrientId", value) values ${values} on conflict do nothing`,
+    `insert into "food_nutrients" ("foodId", "nutrientId", value) values ${values} on conflict do nothing`,
   );
 };

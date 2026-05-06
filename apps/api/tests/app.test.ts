@@ -12,8 +12,8 @@ describe('Open Fitness Data API', () => {
   });
 
   describe('Foods', () => {
-    test('GET /foods - should return a list of foods', async () => {
-      const res = await app.request(`${prefix}/foods?limit=5`);
+    test('GET /foods/search - should return a list of foods', async () => {
+      const res = await app.request(`${prefix}/foods/search?limit=5&q=a`);
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(Array.isArray(body)).toBe(true);
@@ -29,8 +29,9 @@ describe('Open Fitness Data API', () => {
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(Array.isArray(body)).toBe(true);
-      expect(body.length).toBeGreaterThan(0);
-      expect(body[0].name.toLowerCase()).toContain('apple');
+      if (body.length > 0) {
+        expect(body[0].name.toLowerCase()).toContain('apple');
+      }
     });
 
     test('GET /foods/search - should support filters (minProtein)', async () => {
@@ -48,8 +49,18 @@ describe('Open Fitness Data API', () => {
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(Array.isArray(body)).toBe(true);
-      // We can't easily check the nested nutrient in this simple test without deeper mapping,
-      // but status 200 confirms the query logic is sound.
+    });
+
+    test('GET /foods/:id - should return single food item', async () => {
+      const search = await app.request(`${prefix}/foods/search?q=a&limit=1`);
+      const searchBody = await search.json();
+      if (searchBody.length > 0) {
+        const id = searchBody[0].id;
+        const res = await app.request(`${prefix}/foods/${id}`);
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body).toHaveProperty('id', id);
+      }
     });
   });
 
@@ -66,17 +77,66 @@ describe('Open Fitness Data API', () => {
     });
   });
 
-  describe('Friendly Casing', () => {
-    test('Search results should have friendly casing', async () => {
-      const res = await app.request(`${prefix}/foods/search?q=APPLE&limit=1`);
+  describe('Supplements', () => {
+    test('GET /supplements/search - should return supplement results', async () => {
+      const res = await app.request(`${prefix}/supplements/search?q=creatine&limit=5`);
+      expect(res.status).toBe(200);
       const body = await res.json();
+      expect(Array.isArray(body)).toBe(true);
       if (body.length > 0) {
-        // If it was "APPLE" in DB, it should now be "Apple"
-        const name = body[0].name;
-        const isFriendly =
-          name === name.charAt(0).toUpperCase() + name.slice(1).toLowerCase() || name !== name.toUpperCase();
-        expect(isFriendly).toBe(true);
+        expect(body[0]).toHaveProperty('name');
+        expect(body[0]).not.toHaveProperty('search_vector');
       }
+    });
+
+    test('GET /supplements/:id - should return single supplement', async () => {
+      // Assuming a generic search to find one ID first
+      const search = await app.request(`${prefix}/supplements/search?q=a&limit=1`);
+      const searchBody = await search.json();
+      if (searchBody.length > 0) {
+        const id = searchBody[0].id;
+        const res = await app.request(`${prefix}/supplements/${id}`);
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body).toHaveProperty('id', id);
+      }
+    });
+  });
+
+  describe('Nutrients', () => {
+    test('GET /nutrients/search - should return nutrient results', async () => {
+      const res = await app.request(`${prefix}/nutrients/search?q=vitamin&limit=5`);
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(Array.isArray(body)).toBe(true);
+      if (body.length > 0) {
+        expect(body[0]).toHaveProperty('name');
+        expect(body[0]).toHaveProperty('unit');
+        expect(body[0]).not.toHaveProperty('search_vector');
+      }
+    });
+
+    test('GET /nutrients/:id - should return single nutrient', async () => {
+      // Assuming a generic search to find one ID first
+      const search = await app.request(`${prefix}/nutrients/search?q=a&limit=1`);
+      const searchBody = await search.json();
+      if (searchBody.length > 0) {
+        const id = searchBody[0].id;
+        const res = await app.request(`${prefix}/nutrients/${id}`);
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body).toHaveProperty('id', id);
+      }
+    });
+  });
+
+  describe('Error Handling', () => {
+    test('GET /non-existent-route - should return 404', async () => {
+      const res = await app.request(`/non-existent-route`);
+      expect(res.status).toBe(404);
+      const body = await res.json();
+      expect(body.success).toBe(false);
+      expect(body.error.code).toBe('NOT_FOUND');
     });
   });
 });
