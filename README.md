@@ -2,14 +2,49 @@
 
 Open Fitness Data provides a high-performance API for fitness-related information, including global food items, supplements, and exercises. It aggregates and normalizes data from international sources into a unified, searchable interface.
 
-## Quick Start
+## Setup
 
-The fastest way to get started is using the automated setup utility which handles environment config, Docker infrastructure, and database schema. Docker Compose reads the root `.env`, so keep it in sync with `.env.example`.
+Follow these steps to get the project running locally:
 
-```sh
-bun install
-bun setup
+### 1. Environment Configuration
+
+Copy the example environment file and generate a master key for API management:
+
+```bash
+cp .env.example .env
 ```
+
+Open `.env` and add a `MASTER_KEY` (a long random string). This key is used to manage API keys.
+
+### 2. Infrastructure
+
+Build the project and start the Docker containers (PostgreSQL):
+
+```bash
+bun install
+bun run build
+docker compose up -d
+```
+
+### 3. Load Data
+
+Load the fitness data into your database. You can load all sources at once:
+
+```bash
+bun run load all
+```
+
+*Individual sources can also be loaded, e.g., `bun run load foods usda`.*
+
+### 4. Start Development Server
+
+Run the Next.js application with embedded API routes:
+
+```bash
+bun run dev
+```
+
+The app will be available at `http://localhost:3000` and API documentation at `http://localhost:3000/docs`.
 
 ## Management Commands
 
@@ -21,7 +56,6 @@ Once set up, you can manage the data using these commands:
 | ---------------------- | --------------------------------------------------------- |
 | `bun run build`        | Build the workspace and Next production artifacts         |
 | `bun run docker:build` | Build the workspace and Next production artifacts         |
-| `bun run setup`        | Run the automated setup utility                           |
 | `bun run start`        | Start Docker containers (without rebuild)                 |
 | `bun run start:db`     | Start only the PostgreSQL database container              |
 | `bun run dev`          | Start the Next.js web app with embedded API routes        |
