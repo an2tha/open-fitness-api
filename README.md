@@ -8,14 +8,16 @@ Follow these steps to get the project running locally:
 
 ### 1. Environment Configuration
 
-Copy the example environment file and generate a master key for API management:
+Copy the example environment file:
 
 ```bash
 cp .env.example .env
 ```
 
-Open `.env` and add a `MASTER_KEY` (a long random string). This key is used to manage API keys.
-NOTE: API Keys are still WIP, the package should run fine without the API Keys (for now)
+Open `.env` and configure your settings. Key variables include:
+- `DATABASE_URL`: Connection string for your PostgreSQL database.
+- `API_KEY_AUTH_ENABLED`: Set to `true` (default) to require API keys for all requests.
+- `BETTER_AUTH_SECRET`: A random string used for session security.
 
 ### 2. Infrastructure
 
@@ -46,6 +48,21 @@ bun run dev
 ```
 
 The app will be available at `http://localhost:3000` and API documentation at `http://localhost:3000/docs`.
+
+## Authentication
+
+Open Fitness Data uses [Better Auth](https://www.better-auth.com/) with the API Key plugin for secure access.
+
+### Creating an API Key
+By default, the dashboard at `http://localhost:3000/dashboard` allows you to create and manage your API keys.
+
+### Using the API Key
+Include your API key in the request headers:
+- `Authorization: Bearer <your_key>`
+- OR `X-API-Key: <your_key>`
+
+### Disabling Authentication (Local Dev only)
+To disable API key requirement for local testing, set `API_KEY_AUTH_ENABLED=false` in your `.env` file.
 
 ## Management Commands
 
