@@ -15,6 +15,7 @@ cp .env.example .env
 ```
 
 Open `.env` and add a `MASTER_KEY` (a long random string). This key is used to manage API keys.
+NOTE: API Keys are still WIP, the package should run fine without the API Keys (for now)
 
 ### 2. Infrastructure
 

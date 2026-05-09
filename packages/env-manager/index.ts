@@ -26,7 +26,7 @@ const envSchema = z.object({
   API_URL: z.string().default('http://localhost:3000/api/v1'),
   BETTER_AUTH_URL: z.string().default('http://localhost:3000/api/v1'),
   LOADER_DB_URL: z.string(),
-  API_KEY_AUTH_ENABLED: z.string().default('false'),
+  API_KEY_AUTH_ENABLED: z.string().default('true'),
 });
 
 const _env = envSchema.safeParse(process.env);
