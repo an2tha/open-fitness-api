@@ -1,5 +1,6 @@
 {
   "name": "@repo/db",
+  "version": "0.1.0",
   "module": "index.ts",
   "type": "module",
   "exports": {
@@ -23,6 +24,8 @@
   "dependencies": {
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
-    "@repo/env-manager": "../env-manager"
+    "pg": "^8.11.3",
+    "postgres": "^3.4.9",
+    "@repo/env-manager": "workspace:*"
   }
 }

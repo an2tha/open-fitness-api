@@ -1,5 +1,6 @@
 {
   "name": "ofdata-loader",
+  "version": "0.1.0",
   "module": "index.ts",
   "bin": {
     "ofdata-loader": "./dist/ofdata-loader"

@@ -1,5 +1,6 @@
 {
   "name": "ofdata-normalizer",
+  "version": "0.1.0",
   "module": "index.ts",
   "bin": {
     "ofdata-normalizer": "./dist/ofdata-normalizer"

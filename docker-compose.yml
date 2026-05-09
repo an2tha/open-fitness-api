@@ -17,7 +17,7 @@ services:
       - ./apps/web/.next/standalone:/usr/src/app
       - ./apps/web/.next/static:/usr/src/app/.next/static
       - ./apps/web/public:/usr/src/app/public
-    command: node server.js
+    command: node apps/web/server.js
     restart: unless-stopped
     networks:
       - fitness_net
