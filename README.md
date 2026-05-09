@@ -116,6 +116,3 @@ Check out the [examples](./examples) directory for sample applications using the
 - [Nutrition Analyzer](./examples/nutrition-analyzer): Calculate total nutrition for a meal.
 - [Exercise Finder](./examples/exercise-finder): Find exercises for specific muscles.
 
-## License
-
-Apache License, Version 2.0.
