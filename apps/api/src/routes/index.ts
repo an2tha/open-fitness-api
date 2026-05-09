@@ -95,25 +95,21 @@ routes.openapi(
     const { foodsTable, exercisesTable, supplementsTable } = await import('@repo/db/src/schema');
     const { count } = await import('drizzle-orm');
 
-    try {
-      const [foodCount] = await db.select({ value: count() }).from(foodsTable);
-      const [exerciseCount] = await db.select({ value: count() }).from(exercisesTable);
-      const [supplementCount] = await db.select({ value: count() }).from(supplementsTable);
+    const [foodCount] = await db.select({ value: count() }).from(foodsTable);
+    const [exerciseCount] = await db.select({ value: count() }).from(exercisesTable);
+    const [supplementCount] = await db.select({ value: count() }).from(supplementsTable);
 
-      return c.json({
-        uptime: Math.floor(process.uptime()),
-        memory: process.memoryUsage(),
-        counts: {
-          foods: foodCount?.value ?? 0,
-          exercises: exerciseCount?.value ?? 0,
-          supplements: supplementCount?.value ?? 0,
-        },
-        node_version: process.version,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (e) {
-      return c.json({ error: 'Failed to fetch stats', details: String(e) }, 500);
-    }
+    return c.json({
+      uptime: Math.floor(process.uptime()),
+      memory: process.memoryUsage(),
+      counts: {
+        foods: foodCount?.value ?? 0,
+        exercises: exerciseCount?.value ?? 0,
+        supplements: supplementCount?.value ?? 0,
+      },
+      node_version: process.version,
+      timestamp: new Date().toISOString(),
+    });
   },
 );
 

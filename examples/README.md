@@ -1,13 +1,13 @@
 # Open Fitness Data Examples
 
-This directory contains example applications using the `@packages/open-fitness-data` library.
+This directory contains example applications using the `@an2tha/open-fitness-data` library.
 
 ## Getting Started
 
 1. Ensure you have the library built:
 
    ```bash
-   bun run build --filter open-fitness-data
+   bun run build --filter @an2tha/open-fitness-data
    ```
 
 2. Install dependencies:

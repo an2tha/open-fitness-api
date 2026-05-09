@@ -47,64 +47,60 @@ const supplements = new OpenAPIHono();
 supplements.openapi(searchSupplementsRoute, async (c) => {
   const { q, limit, offset } = c.req.valid('query');
 
-  try {
-    let result;
-    if (q) {
-      const searchQuery = q
-        .trim()
-        .split(/\s+/)
-        .map((term) => `${term}:*`)
-        .join(' & ');
+  let result;
+  if (q) {
+    const searchQuery = q
+      .trim()
+      .split(/\s+/)
+      .map((term) => `${term}:*`)
+      .join(' & ');
 
-      result = await db.execute(sql`
-        WITH matches AS (
-          (
-            SELECT *, ts_rank(search_vector, to_tsquery('english', ${searchQuery})) as rank
-            FROM supplements
-            WHERE search_vector @@ to_tsquery('english', ${searchQuery})
-            LIMIT ${limit + offset + 100}
-          )
-          UNION ALL
-          (
-            SELECT *, similarity(name, ${q}) as rank
-            FROM supplements
-            WHERE name % ${q}
-            LIMIT ${limit + offset + 100}
-          )
+    result = await db.execute(sql`
+      WITH matches AS (
+        (
+          SELECT *, ts_rank(search_vector, to_tsquery('english', ${searchQuery})) as rank
+          FROM supplements
+          WHERE search_vector @@ to_tsquery('english', ${searchQuery})
+          LIMIT ${limit + offset + 100}
         )
-        SELECT * FROM (
-          SELECT DISTINCT ON (id) * FROM matches
-          ORDER BY id, rank DESC
-        ) AS deduped
-        ORDER BY rank DESC
-        LIMIT ${limit}
-        OFFSET ${offset}
-      `);
-    } else {
-      result = await db.execute(sql`
-        SELECT *, 1 as rank
-        FROM supplements
-        ORDER BY name ASC
-        LIMIT ${limit}
-        OFFSET ${offset}
-      `);
-    }
-
-    const rows = Array.isArray(result) ? result : (result.rows ?? []);
-
-    return c.json(
-      rows.map((s: any) => {
-        const { search_vector: _sv, searchVector: _sv2, rank: _r, ...rest } = s;
-        return {
-          ...rest,
-          name: toFriendlyCase(rest.name),
-          brand: toFriendlyCase(rest.brand),
-        };
-      }),
-    );
-  } catch (e) {
-    return c.json({ error: String(e) }, 500);
+        UNION ALL
+        (
+          SELECT *, similarity(name, ${q}) as rank
+          FROM supplements
+          WHERE name % ${q}
+          LIMIT ${limit + offset + 100}
+        )
+      )
+      SELECT * FROM (
+        SELECT DISTINCT ON (id) * FROM matches
+        ORDER BY id, rank DESC
+      ) AS deduped
+      ORDER BY rank DESC
+      LIMIT ${limit}
+      OFFSET ${offset}
+    `);
+  } else {
+    result = await db.execute(sql`
+      SELECT *, 1 as rank
+      FROM supplements
+      ORDER BY name ASC
+      LIMIT ${limit}
+      OFFSET ${offset}
+    `);
   }
+
+  const rows = Array.isArray(result) ? result : (result.rows ?? []);
+
+  return c.json(
+    rows.map((s: any) => {
+      const { search_vector: _sv, searchVector: _sv2, rank: _r, ...rest } = s;
+      return {
+        ...rest,
+        name: toFriendlyCase(rest.name),
+        brand: toFriendlyCase(rest.brand),
+      };
+    }),
+  );
 });
 
 const listSupplementsRoute = createRoute({

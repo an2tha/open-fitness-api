@@ -1,4 +1,4 @@
-import { createOfdClient } from 'open-fitness-data';
+import { createOfdClient } from '@an2tha/open-fitness-data';
 import dotenv from 'dotenv';
 
 dotenv.config();

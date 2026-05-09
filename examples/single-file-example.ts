@@ -7,7 +7,7 @@
  * 3. OFD_API_KEY=your_key bun examples/single-file-example.ts
  */
 
-import { createOfdClient } from 'open-fitness-data';
+import { createOfdClient } from '@an2tha/open-fitness-data';
 
 const client = createOfdClient({
   // baseUrl: 'http://localhost:3000/api/v1', // Optional: defaults to production

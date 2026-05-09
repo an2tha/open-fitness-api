@@ -25,14 +25,6 @@ export default function DashboardSettingsPage() {
   const [allowNewLogins, setAllowNewLogins] = useState(true);
   const [initialAllowNewLogins, setInitialAllowNewLogins] = useState(true);
 
-  const apiResponse = useMemo(
-    async () =>
-      await fetch(`${API_PREFIX}/admin/settings`, {
-        credentials: 'include',
-      }),
-    [allowNewLogins],
-  );
-
   const sessionToken = session.data?.session?.token;
   const isPending = session.isPending;
   const isDirty = allowNewLogins !== initialAllowNewLogins;
@@ -54,7 +46,10 @@ export default function DashboardSettingsPage() {
       setLoading(true);
       setError(null);
       try {
-        const response = await apiResponse;
+        const response = await fetch(`${API_PREFIX}/admin/settings`, {
+          credentials: 'include',
+          signal: controller.signal,
+        });
         const data = (await response.json()) as SettingsResponse & { error?: { message?: string } };
         if (!response.ok) {
           throw new Error(data.error?.message || 'Failed to load settings');

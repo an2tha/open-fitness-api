@@ -93,7 +93,7 @@ Once set up, you can manage the data using these commands:
 
 ## Type-Safe Client SDK
 
-The project includes a first-class TypeScript SDK (`@packages/open-fitness-data`) for easy integration:
+The project includes a first-class TypeScript SDK (`@an2tha/open-fitness-data`) for easy integration:
 
 - **Full Type Safety**: Auto-generated types for all API resources.
 - **Automatic Parsing**: Nutritional values are automatically parsed from strings to numbers.
@@ -101,7 +101,7 @@ The project includes a first-class TypeScript SDK (`@packages/open-fitness-data`
 - **Isomorphic**: Works in Node.js, Bun, and the browser.
 
 ```ts
-import { createOfdClient } from 'open-fitness-data';
+import { createOfdClient } from '@an2tha/open-fitness-data';
 
 const client = createOfdClient();
 const foods = await client.foods.search({ q: 'kale' });
@@ -110,7 +110,7 @@ console.log(foods[0].calories); // Already a number!
 
 ## Examples
 
-Check out the [examples](./examples) directory for sample applications using the `@packages/open-fitness-data` library:
+Check out the [examples](./examples) directory for sample applications using the `@an2tha/open-fitness-data` library:
 
 - [CLI Food Search](./examples/cli-food-search): Simple command-line tool to search for foods.
 - [Nutrition Analyzer](./examples/nutrition-analyzer): Calculate total nutrition for a meal.

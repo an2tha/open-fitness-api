@@ -228,59 +228,55 @@ foods.openapi(searchFoodsRoute, async (c: any) => {
 
   const whereClause = conditions.length > 0 ? sql` AND ${sql.join(conditions, sql` AND `)}` : sql``;
 
-  try {
-    let foodsResult;
-    if (q) {
-      const searchQuery = q
-        .trim()
-        .split(/\s+/)
-        .map((term: any) => `${term}:*`)
-        .join(' & ');
+  let foodsResult;
+  if (q) {
+    const searchQuery = q
+      .trim()
+      .split(/\s+/)
+      .map((term: any) => `${term}:*`)
+      .join(' & ');
 
-      foodsResult = await db.execute(sql`
-        WITH matches AS (
-          (
-            SELECT *, ts_rank(search_vector, to_tsquery('english', ${searchQuery})) as rank
-            FROM foods as f
-            WHERE f.search_vector @@ to_tsquery('english', ${searchQuery})${whereClause}
-            LIMIT ${limit + offset + 100}
-          )
-          UNION ALL
-          (
-            SELECT *, similarity(name, ${q}) as rank
-            FROM foods as f
-            WHERE f.name % ${q}${whereClause}
-            LIMIT ${limit + offset + 100}
-          )
+    foodsResult = await db.execute(sql`
+      WITH matches AS (
+        (
+          SELECT *, ts_rank(search_vector, to_tsquery('english', ${searchQuery})) as rank
+          FROM foods as f
+          WHERE f.search_vector @@ to_tsquery('english', ${searchQuery})${whereClause}
+          LIMIT ${limit + offset + 100}
         )
-        SELECT * FROM (
-        SELECT DISTINCT ON (id) * FROM matches
-        ORDER BY id, rank DESC
-      ) AS deduped
-      ORDER BY rank DESC
+        UNION ALL
+        (
+          SELECT *, similarity(name, ${q}) as rank
+          FROM foods as f
+          WHERE f.name % ${q}${whereClause}
+          LIMIT ${limit + offset + 100}
+        )
+      )
+      SELECT * FROM (
+      SELECT DISTINCT ON (id) * FROM matches
+      ORDER BY id, rank DESC
+    ) AS deduped
+    ORDER BY rank DESC
+    LIMIT ${limit}
+    OFFSET ${offset}
+    `);
+  } else {
+    foodsResult = await db.execute(sql`
+      SELECT *, 1 as rank
+      FROM foods as f
+      WHERE 1=1${whereClause}
+      ORDER BY name ASC
       LIMIT ${limit}
       OFFSET ${offset}
-      `);
-    } else {
-      foodsResult = await db.execute(sql`
-        SELECT *, 1 as rank
-        FROM foods as f
-        WHERE 1=1${whereClause}
-        ORDER BY name ASC
-        LIMIT ${limit}
-        OFFSET ${offset}
-      `);
-    }
-
-    const rows = Array.isArray(foodsResult) ? foodsResult : (foodsResult.rows ?? []);
-    const nutrientsMap = await fetchNutrientsForFoods(rows.map((f: any) => f.id));
-
-    const result = rows.map((food: any) => mapFood(food, nutrientsMap.get(food.id) || []));
-
-    return c.json(result);
-  } catch (e) {
-    return c.json({ error: String(e) }, 500);
+    `);
   }
+
+  const rows = Array.isArray(foodsResult) ? foodsResult : (foodsResult.rows ?? []);
+  const nutrientsMap = await fetchNutrientsForFoods(rows.map((f: any) => f.id));
+
+  const result = rows.map((food: any) => mapFood(food, nutrientsMap.get(food.id) || []));
+
+  return c.json(result);
 });
 
 foods.openapi(getFoodRoute, async (c) => {

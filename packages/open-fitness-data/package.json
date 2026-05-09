@@ -1,5 +1,5 @@
 {
-  "name": "open-fitness-data",
+  "name": "@an2tha/open-fitness-data",
   "version": "0.1.0",
   "description": "Type-safe TypeScript client for the Open Fitness Data API",
   "type": "module",

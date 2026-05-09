@@ -152,58 +152,54 @@ exercises.openapi(searchExercisesRoute, (async (c: any) => {
 
   const whereClause = conditions.length > 0 ? sql` AND ${sql.join(conditions, sql` AND `)}` : sql``;
 
-  try {
-    let result;
-    if (q) {
-      const searchQuery = q
-        .trim()
-        .split(/\s+/)
-        .map((term: any) => `${term}:*`)
-        .join(' & ');
+  let result;
+  if (q) {
+    const searchQuery = q
+      .trim()
+      .split(/\s+/)
+      .map((term: any) => `${term}:*`)
+      .join(' & ');
 
-      result = await db.execute(sql`
-        WITH matches AS (
-          (
-            SELECT *, ts_rank(search_vector, to_tsquery('english', ${searchQuery})) as rank
-            FROM exercises as e
-            WHERE e.search_vector @@ to_tsquery('english', ${searchQuery})${whereClause}
-            LIMIT ${limit + offset + 100}
-          )
-          UNION ALL
-          (
-            SELECT *, similarity(name, ${q}) as rank
-            FROM exercises as e
-            WHERE e.name % ${q}${whereClause}
-            LIMIT ${limit + offset + 100}
-          )
+    result = await db.execute(sql`
+      WITH matches AS (
+        (
+          SELECT *, ts_rank(search_vector, to_tsquery('english', ${searchQuery})) as rank
+          FROM exercises as e
+          WHERE e.search_vector @@ to_tsquery('english', ${searchQuery})${whereClause}
+          LIMIT ${limit + offset + 100}
         )
-        SELECT * FROM (
-        SELECT DISTINCT ON (id) * FROM matches
-        ORDER BY id, rank DESC
-      ) AS deduped
-      ORDER BY rank DESC
+        UNION ALL
+        (
+          SELECT *, similarity(name, ${q}) as rank
+          FROM exercises as e
+          WHERE e.name % ${q}${whereClause}
+          LIMIT ${limit + offset + 100}
+        )
+      )
+      SELECT * FROM (
+      SELECT DISTINCT ON (id) * FROM matches
+      ORDER BY id, rank DESC
+    ) AS deduped
+    ORDER BY rank DESC
+    LIMIT ${limit}
+    OFFSET ${offset}
+    `);
+  } else {
+    result = await db.execute(sql`
+      SELECT *, 1 as rank
+      FROM exercises as e
+      WHERE 1=1${whereClause}
+      ORDER BY name ASC
       LIMIT ${limit}
       OFFSET ${offset}
-      `);
-    } else {
-      result = await db.execute(sql`
-        SELECT *, 1 as rank
-        FROM exercises as e
-        WHERE 1=1${whereClause}
-        ORDER BY name ASC
-        LIMIT ${limit}
-        OFFSET ${offset}
-      `);
-    }
-
-    const rows = Array.isArray(result) ? result : (result.rows ?? []);
-    const exerciseIds = rows.map((e: any) => e.id);
-    const { musclesMap, equipmentMap } = await fetchDetailsForExercises(exerciseIds);
-
-    return c.json(rows.map((e: any) => mapExercise(e, musclesMap.get(e.id) || [], equipmentMap.get(e.id) || [])));
-  } catch (e) {
-    return c.json({ error: String(e) }, 500);
+    `);
   }
+
+  const rows = Array.isArray(result) ? result : (result.rows ?? []);
+  const exerciseIds = rows.map((e: any) => e.id);
+  const { musclesMap, equipmentMap } = await fetchDetailsForExercises(exerciseIds);
+
+  return c.json(rows.map((e: any) => mapExercise(e, musclesMap.get(e.id) || [], equipmentMap.get(e.id) || [])));
 }) as any);
 
 const listExercisesRoute = createRoute({

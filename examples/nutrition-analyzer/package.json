@@ -6,7 +6,7 @@
     "start": "bun src/index.ts"
   },
   "dependencies": {
-    "open-fitness-data": "workspace:*",
+    "@an2tha/open-fitness-data": "workspace:*",
     "dotenv": "^16.4.5"
   }
 }
