@@ -1,6 +1,6 @@
 import { Context, Next } from 'hono';
 import { nanoid } from 'nanoid';
-import { env } from "@repo/env-manager"
+import { env } from '@repo/env-manager';
 import { RateLimitError } from '../lib/error';
 
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
@@ -68,10 +68,12 @@ export async function securityHeaders(c: Context, next: Next) {
 
 export async function corsMiddleware(c: Context, next: Next) {
   const origin = c.req.header('origin');
+  const allowedOrigins = env.CORS_ORIGIN.split(',').map((o) => o.trim());
+  const isOriginAllowed = allowedOrigins.includes('*') || (origin && allowedOrigins.includes(origin));
 
   if (c.req.method === 'OPTIONS') {
-    return c.text('', 204, {
-      'Access-Control-Allow-Origin': env.CORS_ORIGIN === '*' ? '*' : origin || '',
+    return c.text('', undefined, {
+      'Access-Control-Allow-Origin': isOriginAllowed ? origin || '*' : '',
       'Access-Control-Allow-Methods': env.CORS_METHODS,
       'Access-Control-Allow-Headers': env.CORS_HEADERS,
       'Access-Control-Max-Age': '86400',
@@ -80,7 +82,7 @@ export async function corsMiddleware(c: Context, next: Next) {
 
   await next();
 
-  c.res.headers.set('Access-Control-Allow-Origin', env.CORS_ORIGIN === '*' ? '*' : origin || '');
+  c.res.headers.set('Access-Control-Allow-Origin', isOriginAllowed ? origin || '*' : '');
   c.res.headers.set('Access-Control-Allow-Methods', env.CORS_METHODS);
   c.res.headers.set('Access-Control-Allow-Headers', env.CORS_HEADERS);
 }

@@ -28,7 +28,7 @@ const exerciseSchema = z.object({
   id: z.number().openapi({ description: 'Exercise ID' }),
   name: z.string().openapi({ description: 'Exercise name' }),
   description: z.string().optional().nullable().openapi({ description: 'Exercise description' }),
-  updatedAt: z.string().datetime().optional().nullable().openapi({ description: 'Last update timestamp' }),
+  updatedAt: z.string().nullable().optional().openapi({ description: 'Last update timestamp' }),
   muscles: z.array(muscleSchema).optional().openapi({ description: 'Muscles involved in the exercise' }),
   equipment: z.array(equipmentSchema).optional().openapi({ description: 'Equipment required for the exercise' }),
 });
@@ -110,7 +110,7 @@ const searchExercisesRoute = createRoute({
   description: 'Search exercises using full-text and fuzzy search with filters',
   request: {
     query: z.object({
-      q: z.string().min(1, 'Search query is required'),
+      q: z.string().optional(),
       limit: z.string().default('50').transform(Number),
       offset: z.string().default('0').transform(Number),
       muscle: z.string().optional().openapi({ description: 'Filter by muscle name' }),
@@ -133,11 +133,6 @@ const exercises = new OpenAPIHono();
 
 exercises.openapi(searchExercisesRoute, (async (c: any) => {
   const { q, limit, offset, muscle, equipment } = c.req.valid('query');
-  const searchQuery = q
-    .trim()
-    .split(/\s+/)
-    .map((term: any) => `${term}:*`)
-    .join(' & ');
 
   const conditions: any[] = [];
   if (muscle) {
@@ -155,37 +150,57 @@ exercises.openapi(searchExercisesRoute, (async (c: any) => {
     )`);
   }
 
-  const whereClause = conditions.length > 0 ? sql`AND ${sql.join(conditions, sql` AND `)}` : sql``;
+  const whereClause = conditions.length > 0 ? sql` AND ${sql.join(conditions, sql` AND `)}` : sql``;
 
   try {
-    const result = await db.execute(sql`
-      WITH matches AS (
-        (
-          SELECT *, ts_rank(search_vector, to_tsquery('english', ${searchQuery})) as rank
-          FROM exercises as e
-          WHERE e.search_vector @@ to_tsquery('english', ${searchQuery}) ${whereClause}
-          LIMIT ${limit + offset + 100}
+    let result;
+    if (q) {
+      const searchQuery = q
+        .trim()
+        .split(/\s+/)
+        .map((term: any) => `${term}:*`)
+        .join(' & ');
+
+      result = await db.execute(sql`
+        WITH matches AS (
+          (
+            SELECT *, ts_rank(search_vector, to_tsquery('english', ${searchQuery})) as rank
+            FROM exercises as e
+            WHERE e.search_vector @@ to_tsquery('english', ${searchQuery})${whereClause}
+            LIMIT ${limit + offset + 100}
+          )
+          UNION ALL
+          (
+            SELECT *, similarity(name, ${q}) as rank
+            FROM exercises as e
+            WHERE e.name % ${q}${whereClause}
+            LIMIT ${limit + offset + 100}
+          )
         )
-        UNION ALL
-        (
-          SELECT *, similarity(name, ${q}) as rank
-          FROM exercises as e
-          WHERE e.name % ${q} ${whereClause}
-          LIMIT ${limit + offset + 100}
-        )
-      )
-      SELECT DISTINCT ON (id) * FROM matches
-      ORDER BY id, rank DESC
+        SELECT * FROM (
+        SELECT DISTINCT ON (id) * FROM matches
+        ORDER BY id, rank DESC
+      ) AS deduped
+      ORDER BY rank DESC
       LIMIT ${limit}
       OFFSET ${offset}
-    `);
+      `);
+    } else {
+      result = await db.execute(sql`
+        SELECT *, 1 as rank
+        FROM exercises as e
+        WHERE 1=1${whereClause}
+        ORDER BY name ASC
+        LIMIT ${limit}
+        OFFSET ${offset}
+      `);
+    }
 
-    const exerciseIds = result.map((e: any) => e.id);
+    const rows = Array.isArray(result) ? result : (result.rows ?? []);
+    const exerciseIds = rows.map((e: any) => e.id);
     const { musclesMap, equipmentMap } = await fetchDetailsForExercises(exerciseIds);
 
-    return c.json(
-      result.map((e: any) => mapExercise(e, musclesMap.get(e.id) || [], equipmentMap.get(e.id) || [])),
-    );
+    return c.json(rows.map((e: any) => mapExercise(e, musclesMap.get(e.id) || [], equipmentMap.get(e.id) || [])));
   } catch (e) {
     return c.json({ error: String(e) }, 500);
   }
@@ -222,9 +237,7 @@ exercises.openapi(listExercisesRoute, async (c) => {
   const exerciseIds = result.map((e) => e.id);
   const { musclesMap, equipmentMap } = await fetchDetailsForExercises(exerciseIds);
 
-  return c.json(
-    result.map((e: any) => mapExercise(e, musclesMap.get(e.id) || [], equipmentMap.get(e.id) || [])),
-  );
+  return c.json(result.map((e: any) => mapExercise(e, musclesMap.get(e.id) || [], equipmentMap.get(e.id) || [])));
 });
 
 const getExerciseRoute = createRoute({

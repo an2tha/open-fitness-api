@@ -1,0 +1,62 @@
+{
+  "name": "open-fitness-data",
+  "version": "0.1.0",
+  "description": "Type-safe TypeScript client for the Open Fitness Data API",
+  "type": "module",
+  "license": "Apache-2.0",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/src/client.d.ts",
+      "import": "./dist/src/client.js",
+      "default": "./dist/src/client.js"
+    },
+    "./schemas": {
+      "types": "./dist/src/schemas.d.ts",
+      "import": "./dist/src/schemas.js",
+      "default": "./dist/src/schemas.js"
+    },
+    "./errors": {
+      "types": "./dist/src/errors.d.ts",
+      "import": "./dist/src/errors.js",
+      "default": "./dist/src/errors.js"
+    },
+    "./request": {
+      "types": "./dist/src/request.d.ts",
+      "import": "./dist/src/request.js",
+      "default": "./dist/src/request.js"
+    },
+    "./types": {
+      "types": "./dist/src/types.d.ts",
+      "import": "./dist/src/types.js",
+      "default": "./dist/src/types.js"
+    }
+  },
+  "files": [
+    "dist",
+    "docs",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "bunx tsc -p tsconfig.build.json",
+    "test": "bun test && bunx tsc -p tests/tsconfig.json",
+    "test:types": "bunx tsc -p tests/tsconfig.json",
+    "prepack": "bun run build"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

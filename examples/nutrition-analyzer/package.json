@@ -1,0 +1,12 @@
+{
+  "name": "example-nutrition-analyzer",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "bun src/index.ts"
+  },
+  "dependencies": {
+    "open-fitness-data": "workspace:*",
+    "dotenv": "^16.4.5"
+  }
+}

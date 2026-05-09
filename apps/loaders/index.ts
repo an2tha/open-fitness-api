@@ -43,13 +43,15 @@ const safeRun = async (id: string, fn: () => Promise<any>) => {
   const logger = getLogger();
   try {
     await fn();
+    return true;
   } catch (error: any) {
     logger.error(`[${id}] Task failed: ${error.message}`);
-    process.exit(1);
+    process.exitCode = 1;
+    return false;
   }
 };
 
-const getDb = () => drizzle(new Bun.SQL(env.DATABASE_URL));
+const getDb = () => drizzle(new Bun.SQL(env.LOADER_DB_URL));
 
 // --- Purge Logic ---
 
@@ -97,7 +99,7 @@ const allCmd = command({
   args: { purge: purgeFlag, verbose: verboseFlag },
   handler: async ({ purge, verbose: _verbose }) => {
     if (purge && (await confirmPurge('Purge ENTIRE database'))) await purgeCategory('all');
-    await Promise.all([
+    const results = await Promise.all([
       safeRun('cnf', loadCnfFoods),
       safeRun('bls', loadBlsFoods),
       safeRun('nevo', loadNevoFoods),
@@ -108,9 +110,8 @@ const allCmd = command({
       safeRun('wrkout', loadWrkoutExercises),
       safeRun('dsld', loadDsldSupplements),
       safeRun('swiss', loadSwissFoods),
-    ]).catch(() => {
-      process.exitCode = 1;
-    });
+    ]);
+    if (results.some((ok) => !ok)) process.exitCode = 1;
   },
 });
 
@@ -142,11 +143,10 @@ const foodsCmd = command({
       swiss: () => safeRun('swiss', loadSwissFoods),
     };
     if (source === 'all') {
-      await Promise.all(Object.values(tasks).map((t) => t())).catch(() => {
-        process.exitCode = 1;
-      });
-    } else {
-      await tasks[source]?.();
+      const results = await Promise.all(Object.values(tasks).map((t) => t()));
+      if (results.some((ok) => !ok)) process.exitCode = 1;
+    } else if (!(await tasks[source]?.())) {
+      process.exitCode = 1;
     }
   },
 });
@@ -171,11 +171,10 @@ const exercisesCmd = command({
       wrkout: () => safeRun('wrkout', loadWrkoutExercises),
     };
     if (source === 'all') {
-      await Promise.all(Object.values(tasks).map((t) => t())).catch(() => {
-        process.exitCode = 1;
-      });
-    } else {
-      await tasks[source]?.();
+      const results = await Promise.all(Object.values(tasks).map((t) => t()));
+      if (results.some((ok) => !ok)) process.exitCode = 1;
+    } else if (!(await tasks[source]?.())) {
+      process.exitCode = 1;
     }
   },
 });
@@ -199,11 +198,10 @@ const supplementsCmd = command({
       dsld: () => safeRun('dsld', loadDsldSupplements),
     };
     if (source === 'all') {
-      await Promise.all(Object.values(tasks).map((t) => t())).catch(() => {
-        process.exitCode = 1;
-      });
-    } else {
-      await tasks[source]?.();
+      const results = await Promise.all(Object.values(tasks).map((t) => t()));
+      if (results.some((ok) => !ok)) process.exitCode = 1;
+    } else if (!(await tasks[source]?.())) {
+      process.exitCode = 1;
     }
   },
 });

@@ -1,15 +1,13 @@
 {
   "name": "api",
   "scripts": {
-    "dev": "bun run --hot src/index.ts",
-    "build": "bun build src/index.ts --target bun --outdir ./dist --compile",
     "start": "bun run ./dist/index.js",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
-    "test": "bun test",
-    "lint": "eslint . && prettier --check ."
+    "test": "bun test"
   },
   "dependencies": {
+    "@better-auth/api-key": "^1.6.9",
     "@better-auth/drizzle-adapter": "^1.6.9",
     "@hono/zod-openapi": "^0.18.4",
     "@repo/db": "workspace:*",

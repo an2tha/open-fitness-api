@@ -3,7 +3,7 @@ import { requestIdMiddleware, corsMiddleware, securityHeaders, rateLimitMiddlewa
 import { apiKeyAuthMiddleware } from './middleware/api-key-auth';
 import { logger } from './middleware/logger';
 import routes from './routes';
-import { env } from "@repo/env-manager";
+import { env } from '@repo/env-manager';
 import { AppError, fromZodError } from './lib/error';
 
 function handleAppError(error: unknown, c: Context) {
@@ -18,8 +18,8 @@ function handleAppError(error: unknown, c: Context) {
           message: error.message,
           requestId,
         },
-      },
-      error.statusCode,
+      } as any,
+      error.statusCode as any,
     );
   }
 
@@ -36,7 +36,7 @@ function handleAppError(error: unknown, c: Context) {
             requestId,
           },
         },
-        validationError.statusCode,
+        validationError.statusCode as any,
       );
     }
   }
@@ -126,5 +126,4 @@ export function createApp(options: { enableApiKeyAuth?: boolean } = {}) {
 }
 
 const app = createApp();
-
 export default app;

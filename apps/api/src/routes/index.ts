@@ -1,31 +1,22 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
-import { env } from "@repo/env-manager";
+import { env } from '@repo/env-manager';
+import { z } from 'zod';
 import foods from './foods';
 import exercises from './exercises';
 import supplements from './supplements';
 import nutrients from './nutrients';
-import adminApiKeys from './admin/api-keys';
-import { auth, authApi } from '../lib/auth';
-
-// Create a wrapper app for better-auth handler
-const authApp = new OpenAPIHono();
-
-// Use the better-auth handler to catch all auth requests
-authApp.all('*', async (c) => {
-  const url = c.req.url;
-  const body = c.req.method !== 'GET' && c.req.method !== 'HEAD' ? await c.req.text() : undefined;
-  const req = new Request(url, {
-    method: c.req.method,
-    headers: c.req.headers,
-    body: body || undefined,
-  });
-  const response = await auth.handler(req);
-  const responseBody = await response.text();
-  const setCookie = response.headers.get('Set-Cookie');
-  return c.text(responseBody, response.status, setCookie ? { 'Set-Cookie': setCookie } : {});
-});
+import { auth } from './auth';
+import { requireSession } from '../middleware/session-auth';
+import { readAllAppSettings, readPublicAppSettings, setAppSetting } from '../lib/app-settings';
 
 const routes = new OpenAPIHono();
+
+const updateSettingsSchema = z
+  .object({
+    allowNewLogins: z.boolean().optional(),
+    settings: z.record(z.unknown()).optional(),
+  })
+  .strict();
 
 routes.openapi(
   {
@@ -52,7 +43,7 @@ routes.openapi(
       },
     },
   },
-  (c) => {
+  (c: any) => {
     return c.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
@@ -131,8 +122,70 @@ routes.route('/foods', foods);
 routes.route('/exercises', exercises);
 routes.route('/supplements', supplements);
 routes.route('/nutrients', nutrients);
-routes.route('/auth', authApp);
-routes.route('/admin/api-keys', adminApiKeys);
+
+routes.get('/auth/settings', async (c) => {
+  const settings = await readPublicAppSettings();
+  return c.json({ success: true, ...settings });
+});
+
+routes.get('/admin/settings', async (c) => {
+  await requireSession(c, async () => {});
+  const settings = await readAllAppSettings();
+  return c.json({ success: true, settings, allowNewLogins: settings.allowNewLogins !== false });
+});
+
+routes.put('/admin/settings', async (c) => {
+  await requireSession(c, async () => {});
+
+  const body = updateSettingsSchema.parse(await c.req.json());
+  const updates = {
+    ...(body.settings ?? {}),
+    ...(body.allowNewLogins === undefined ? {} : { allowNewLogins: body.allowNewLogins }),
+  };
+
+  for (const [key, value] of Object.entries(updates)) {
+    await setAppSetting(key, value);
+  }
+
+  const settings = await readAllAppSettings();
+  return c.json({ success: true, settings, allowNewLogins: settings.allowNewLogins !== false });
+});
+
+routes.all('/auth/*', async (c) => {
+  if (env.NODE_ENV !== 'production') {
+    console.log('[Hono → BetterAuth]', {
+      path: c.req.path,
+      method: c.req.method,
+      url: c.req.url,
+    });
+  }
+
+  if (c.req.path.includes('/auth/sign-up')) {
+    const { allowNewLogins } = await readPublicAppSettings();
+    if (!allowNewLogins) {
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'SIGN_UP_DISABLED',
+            message: 'New logins are currently disabled',
+          },
+        },
+        403,
+      );
+    }
+  }
+
+  const res = await auth.handler(c.req.raw);
+
+  if (env.NODE_ENV !== 'production') {
+    console.log('[BetterAuth response]', {
+      status: res.status,
+    });
+  }
+
+  return res;
+});
 
 routes.get('/openapi.json', (c) => {
   try {

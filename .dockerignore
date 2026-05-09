@@ -3,6 +3,9 @@ node_modules
 .git
 .turbo
 .next
+**/.next
+!apps/web/.next
+!apps/web/.next/**
 dist
 build
 *.log

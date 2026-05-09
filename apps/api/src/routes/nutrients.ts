@@ -62,14 +62,19 @@ nutrients.openapi(searchNutrientsRoute, async (c) => {
         LIMIT ${limit + offset + 100}
       )
     )
-    SELECT DISTINCT ON (id) * FROM matches
-    ORDER BY id, rank DESC
+    SELECT * FROM (
+      SELECT DISTINCT ON (id) * FROM matches
+      ORDER BY id, rank DESC
+    ) AS deduped
+    ORDER BY rank DESC
     LIMIT ${limit}
     OFFSET ${offset}
   `);
 
+  const rows = Array.isArray(result) ? result : (result.rows ?? []);
+
   return c.json(
-    result.map((n: any) => {
+    rows.map((n: any) => {
       const { search_vector: _sv, searchVector: _sv2, rank: _r, ...rest } = n;
       return {
         ...rest,

@@ -1,26 +1,16 @@
-FROM oven/bun:1.3.12 AS base
+FROM node:22-alpine AS runner
 WORKDIR /usr/src/app
 
-# Install dependencies
-COPY package.json bun.lock ./
-COPY apps/api/package.json ./apps/api/
-COPY apps/loaders/package.json ./apps/loaders/
-COPY apps/normalizers/package.json ./apps/normalizers/
-COPY apps/web/package.json ./apps/web/
-COPY packages/db/package.json ./packages/db/
-COPY packages/eslint-config/package.json ./packages/eslint-config/
-COPY packages/typescript-config/package.json ./packages/typescript-config/
-
-RUN bun install --frozen-lockfile
-
-# Copy source code
-COPY . .
-
-# Build Next.js app
-WORKDIR /usr/src/app/apps/web
 ENV NODE_ENV=production
-RUN bun run build
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
 
-# Run the app
+COPY apps/web/.next/standalone ./
+COPY apps/web/.next/static ./.next/static
+COPY apps/web/.next/static ./apps/web/.next/static
+COPY apps/web/public ./public
+COPY apps/web/public ./apps/web/public
+
 EXPOSE 3000
-CMD ["bun", "run", "start"]
+
+CMD ["sh", "-c", "if [ -f server.js ]; then exec node server.js; elif [ -f apps/web/server.js ]; then exec node apps/web/server.js; else echo 'server.js not found'; exit 1; fi"]

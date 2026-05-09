@@ -21,10 +21,13 @@ serve({
 
 if (isProduction) {
   console.log(`🚀 Server running on http://0.0.0.0:${port}`);
-  console.log(`📚 API docs available at http://0.0.0.0:${port}/api/v1/docs`);
 } else {
   console.log(`🚀 Server running on http://localhost:${port}`);
-  console.log(`📚 API docs available at http://localhost:${port}/api/v1/docs`);
+}
+
+if (env.SWAGGER_ENABLED === 'true') {
+  const docsUrl = isProduction ? `http://0.0.0.0:${port}/swagger-docs` : `http://localhost:${port}/swagger-docs`;
+  console.log(`📚 API docs available at ${docsUrl}`);
 }
 
 export default app;

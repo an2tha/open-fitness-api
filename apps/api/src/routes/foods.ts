@@ -9,7 +9,7 @@ const nutrientInfoSchema = z.object({
   id: z.number(),
   name: z.string(),
   unit: z.string(),
-  value: z.string(),
+  value: z.string().nullable().optional(),
 });
 
 const foodSchema = z.object({
@@ -19,16 +19,16 @@ const foodSchema = z.object({
   name: z.string().openapi({ description: 'Food name' }),
   brand: z.string().optional().openapi({ description: 'Brand name' }),
   category: z.string().optional().openapi({ description: 'Food category' }),
-  servingSize: z.string().optional().openapi({ description: 'Serving size' }),
-  servingUnit: z.string().optional().openapi({ description: 'Serving unit' }),
-  updatedAt: z.string().datetime().optional().openapi({ description: 'Last update timestamp' }),
-  calories: z.string().optional().openapi({ description: 'Calories per serving' }),
-  protein: z.string().optional().openapi({ description: 'Protein per serving' }),
-  fat: z.string().optional().openapi({ description: 'Fat per serving' }),
-  carbohydrates: z.string().optional().openapi({ description: 'Carbohydrates per serving' }),
-  fiber: z.string().optional().openapi({ description: 'Fiber per serving' }),
-  sugar: z.string().optional().openapi({ description: 'Sugar per serving' }),
-  sodium: z.string().optional().openapi({ description: 'Sodium per serving' }),
+  servingSize: z.string().nullable().optional().openapi({ description: 'Serving size' }),
+  servingUnit: z.string().nullable().optional().openapi({ description: 'Serving unit' }),
+  updatedAt: z.string().nullable().optional().openapi({ description: 'Last update timestamp' }),
+  calories: z.string().nullable().optional().openapi({ description: 'Calories per serving' }),
+  protein: z.string().nullable().optional().openapi({ description: 'Protein per serving' }),
+  fat: z.string().nullable().optional().openapi({ description: 'Fat per serving' }),
+  carbohydrates: z.string().nullable().optional().openapi({ description: 'Carbohydrates per serving' }),
+  fiber: z.string().nullable().optional().openapi({ description: 'Fiber per serving' }),
+  sugar: z.string().nullable().optional().openapi({ description: 'Sugar per serving' }),
+  sodium: z.string().nullable().optional().openapi({ description: 'Sodium per serving' }),
   other_nutrients: z
     .array(nutrientInfoSchema)
     .optional()
@@ -148,7 +148,7 @@ const searchFoodsRoute = createRoute({
   description: 'Search foods using full-text and fuzzy search with filters',
   request: {
     query: z.object({
-      q: z.string().min(1, 'Search query is required'),
+      q: z.string().optional(),
       limit: z.string().default('50').transform(Number),
       offset: z.string().default('0').transform(Number),
       brand: z.string().optional(),
@@ -174,7 +174,7 @@ const searchFoodsRoute = createRoute({
   },
 });
 
-foods.openapi(searchFoodsRoute, async (c) => {
+foods.openapi(searchFoodsRoute, async (c: any) => {
   const {
     q,
     limit,
@@ -189,12 +189,6 @@ foods.openapi(searchFoodsRoute, async (c) => {
     nutrientName,
     minNutrientValue,
   } = c.req.valid('query');
-
-  const searchQuery = q
-    .trim()
-    .split(/\s+/)
-    .map((term) => `${term}:*`)
-    .join(' & ');
 
   // Build dynamic filters
   const conditions: any[] = [];
@@ -222,8 +216,8 @@ foods.openapi(searchFoodsRoute, async (c) => {
     if (nutrientResults.length > 0) {
       const ids = nutrientResults.map((n) => n.id);
       conditions.push(sql`EXISTS (
-        SELECT 1 FROM food_nutrients fn 
-        WHERE fn."foodId" = f.id 
+        SELECT 1 FROM food_nutrients fn
+        WHERE fn."foodId" = f.id
         AND fn."nutrientId" IN (${sql.join(ids, sql`, `)})
         ${minNutrientValue ? sql`AND ${robustCast(sql`fn.value`)} >= ${minNutrientValue}` : sql``}
       )`);
@@ -232,34 +226,56 @@ foods.openapi(searchFoodsRoute, async (c) => {
     }
   }
 
-  const whereClause = conditions.length > 0 ? sql`AND ${sql.join(conditions, sql` AND `)}` : sql``;
+  const whereClause = conditions.length > 0 ? sql` AND ${sql.join(conditions, sql` AND `)}` : sql``;
 
   try {
-    const foodsResult = await db.execute(sql`
-      WITH matches AS (
-        (
-          SELECT *, ts_rank(search_vector, to_tsquery('english', ${searchQuery})) as rank
-          FROM foods as f
-          WHERE f.search_vector @@ to_tsquery('english', ${searchQuery}) ${whereClause}
-          LIMIT ${limit + offset + 100}
+    let foodsResult;
+    if (q) {
+      const searchQuery = q
+        .trim()
+        .split(/\s+/)
+        .map((term: any) => `${term}:*`)
+        .join(' & ');
+
+      foodsResult = await db.execute(sql`
+        WITH matches AS (
+          (
+            SELECT *, ts_rank(search_vector, to_tsquery('english', ${searchQuery})) as rank
+            FROM foods as f
+            WHERE f.search_vector @@ to_tsquery('english', ${searchQuery})${whereClause}
+            LIMIT ${limit + offset + 100}
+          )
+          UNION ALL
+          (
+            SELECT *, similarity(name, ${q}) as rank
+            FROM foods as f
+            WHERE f.name % ${q}${whereClause}
+            LIMIT ${limit + offset + 100}
+          )
         )
-        UNION ALL
-        (
-          SELECT *, similarity(name, ${q}) as rank
-          FROM foods as f
-          WHERE f.name % ${q} ${whereClause}
-          LIMIT ${limit + offset + 100}
-        )
-      )
-      SELECT DISTINCT ON (id) * FROM matches
-      ORDER BY id, rank DESC
+        SELECT * FROM (
+        SELECT DISTINCT ON (id) * FROM matches
+        ORDER BY id, rank DESC
+      ) AS deduped
+      ORDER BY rank DESC
       LIMIT ${limit}
       OFFSET ${offset}
-    `);
+      `);
+    } else {
+      foodsResult = await db.execute(sql`
+        SELECT *, 1 as rank
+        FROM foods as f
+        WHERE 1=1${whereClause}
+        ORDER BY name ASC
+        LIMIT ${limit}
+        OFFSET ${offset}
+      `);
+    }
 
-    const nutrientsMap = await fetchNutrientsForFoods(foodsResult.map((f: any) => f.id));
+    const rows = Array.isArray(foodsResult) ? foodsResult : (foodsResult.rows ?? []);
+    const nutrientsMap = await fetchNutrientsForFoods(rows.map((f: any) => f.id));
 
-    const result = foodsResult.map((food: any) => mapFood(food, nutrientsMap.get(food.id) || []));
+    const result = rows.map((food: any) => mapFood(food, nutrientsMap.get(food.id) || []));
 
     return c.json(result);
   } catch (e) {

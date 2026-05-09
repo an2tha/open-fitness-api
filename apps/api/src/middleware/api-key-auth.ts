@@ -5,6 +5,7 @@ import { eq, sql } from 'drizzle-orm';
 import { hashApiKey } from '../lib/api-key';
 import { UnauthorizedError, ForbiddenError, RateLimitError } from '../lib/error';
 import { env } from '@repo/env-manager';
+import { auth } from '../routes/auth';
 
 /**
  * Extracts the API key from the request.
@@ -42,20 +43,19 @@ setInterval(() => {
 /**
  * Middleware that requires a valid API key on every request.
  *
- * Skip paths can be configured below (health checks, docs, OpenAPI spec).
+ * Uses better-auth/api-key plugin for validation.
  */
 export async function apiKeyAuthMiddleware(c: Context, next: Next) {
   const path = c.req.path;
 
   // Allow health checks, docs, OpenAPI spec, and admin routes without an API key
-  // (admin routes enforce their own MASTER_KEY auth)
+  // (admin routes enforce their own session auth)
   const publicPaths = ['/health', '/health/db', '/swagger-docs', '/docs', '/openapi.json'];
   const prefix = env.API_PREFIX;
-  const isPublic = publicPaths.some(
-    (p) => path === `${prefix}${p}` || path === p,
-  );
+  const isPublic = publicPaths.some((p) => path === `${prefix}${p}` || path === p);
+  const isAuth = path.startsWith(`${prefix}/auth`) || path.startsWith(`${prefix}/api-key`);
   const isAdmin = path.startsWith(`${prefix}/admin`);
-  if (isPublic || isAdmin) {
+  if (isPublic || isAuth || isAdmin) {
     await next();
     return;
   }
@@ -67,65 +67,44 @@ export async function apiKeyAuthMiddleware(c: Context, next: Next) {
     );
   }
 
-  // Hash the provided key and look it up
-  const keyHash = hashApiKey(plaintextKey);
+  try {
+    // Verify the key via better-auth API key plugin
+    const result = (await auth.api.verifyApiKey({
+      body: {
+        key: plaintextKey,
+      },
+    })) as { key?: { id: string; name?: string; enabled?: boolean; expiresAt?: Date } };
 
-  const [keyRecord] = await db
-    .select()
-    .from(apiKeysTable)
-    .where(eq(apiKeysTable.keyHash, keyHash))
-    .limit(1);
+    if (!result) {
+      throw new UnauthorizedError('Invalid API key.');
+    }
 
-  if (!keyRecord) {
+    const apiKey = (result as any).key;
+
+    if (!apiKey) {
+      throw new UnauthorizedError('Invalid API key.');
+    }
+
+    if (apiKey.enabled === false) {
+      throw new ForbiddenError('This API key has been disabled.');
+    }
+
+    if (apiKey.expiresAt && new Date(apiKey.expiresAt) < new Date()) {
+      throw new ForbiddenError('This API key has expired.');
+    }
+
+    // Log the request with the API key details
+    c.set('apiKey', apiKey);
+    c.set('apiKeyId', apiKey.id);
+    c.set('apiKeyName', apiKey.name);
+
+    await next();
+  } catch (error) {
+    // Re-throw our custom errors
+    if (error instanceof UnauthorizedError || error instanceof ForbiddenError) {
+      throw error;
+    }
+    // Wrap any other errors
     throw new UnauthorizedError('Invalid API key.');
   }
-
-  // Check revocation
-  if (keyRecord.revoked) {
-    throw new ForbiddenError('This API key has been revoked.');
-  }
-
-  // Check expiration
-  if (keyRecord.expiresAt && keyRecord.expiresAt < new Date()) {
-    throw new ForbiddenError('This API key has expired.');
-  }
-
-  // Per-key rate limiting
-  const windowSecs = keyRecord.rateLimitWindowSecs ?? 60;
-  const maxReqs = keyRecord.rateLimitMax ?? parseInt(env.RATE_LIMIT_MAX);
-  const windowMs = windowSecs * 1000;
-  const now = Date.now();
-  const record = keyRateLimits.get(keyRecord.id);
-
-  if (!record || record.resetTime < now) {
-    keyRateLimits.set(keyRecord.id, { count: 1, resetTime: now + windowMs });
-  } else {
-    record.count++;
-    if (record.count > maxReqs) {
-      const retryAfter = Math.ceil((record.resetTime - now) / 1000);
-      throw new RateLimitError(
-        `API key rate limit exceeded. Retry after ${retryAfter}s`,
-      );
-    }
-  }
-
-  // Update usage stats asynchronously (fire-and-forget, don't block the request)
-  db.update(apiKeysTable)
-    .set({
-      requestCount: sql`${apiKeysTable.requestCount} + 1`,
-      lastUsedAt: new Date(),
-    })
-    .where(eq(apiKeysTable.id, keyRecord.id))
-    .execute()
-    .catch((err) => console.error('Failed to update API key usage:', err));
-
-  // Attach key metadata to the context for downstream use
-  c.set('apiKey', {
-    id: keyRecord.id,
-    name: keyRecord.name,
-    owner: keyRecord.owner,
-    scopes: keyRecord.scopes,
-  });
-
-  await next();
 }

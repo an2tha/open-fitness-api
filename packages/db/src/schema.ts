@@ -11,5 +11,6 @@ export * from './schemas/movement_patterns';
 export * from './schemas/supplements';
 export * from './schemas/auth';
 export * from './schemas/api_keys';
+export * from './schemas/app-settings';
 export * from './schemas/auth-schema';
 export * as authSchema from './schemas/auth-schema';

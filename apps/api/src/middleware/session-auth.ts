@@ -1,6 +1,6 @@
 import { Context, Next } from 'hono';
 import { getCookie, setCookie } from 'hono/cookie';
-import { auth } from '../lib/auth';
+import { auth } from '../routes/auth';
 import { UnauthorizedError } from '../lib/error';
 
 /**

@@ -12,9 +12,9 @@ const supplementSchema = z.object({
   name: z.string().openapi({ description: 'Supplement name' }),
   brand: z.string().optional().openapi({ description: 'Brand name' }),
   category: z.string().optional().openapi({ description: 'Supplement category' }),
-  servingSize: z.string().optional().openapi({ description: 'Serving size' }),
-  servingUnit: z.string().optional().openapi({ description: 'Serving unit' }),
-  updatedAt: z.string().datetime().optional().openapi({ description: 'Last update timestamp' }),
+  servingSize: z.string().nullable().optional().openapi({ description: 'Serving size' }),
+  servingUnit: z.string().nullable().optional().openapi({ description: 'Serving unit' }),
+  updatedAt: z.string().nullable().optional().openapi({ description: 'Last update timestamp' }),
 });
 
 const searchSupplementsRoute = createRoute({
@@ -25,7 +25,7 @@ const searchSupplementsRoute = createRoute({
   description: 'Search supplements using full-text and fuzzy search',
   request: {
     query: z.object({
-      q: z.string().min(1, 'Search query is required'),
+      q: z.string().optional(),
       limit: z.string().default('50').transform(Number),
       offset: z.string().default('0').transform(Number),
     }),
@@ -46,44 +46,65 @@ const supplements = new OpenAPIHono();
 
 supplements.openapi(searchSupplementsRoute, async (c) => {
   const { q, limit, offset } = c.req.valid('query');
-  const searchQuery = q
-    .trim()
-    .split(/\s+/)
-    .map((term) => `${term}:*`)
-    .join(' & ');
 
-  const result = await db.execute(sql`
-    WITH matches AS (
-      (
-        SELECT *, ts_rank(search_vector, to_tsquery('english', ${searchQuery})) as rank
-        FROM supplements 
-        WHERE search_vector @@ to_tsquery('english', ${searchQuery})
-        LIMIT ${limit + offset + 100}
-      )
-      UNION ALL
-      (
-        SELECT *, similarity(name, ${q}) as rank
-        FROM supplements 
-        WHERE name % ${q}
-        LIMIT ${limit + offset + 100}
-      )
-    )
-    SELECT DISTINCT ON (id) * FROM matches
-    ORDER BY id, rank DESC
-    LIMIT ${limit}
-    OFFSET ${offset}
-  `);
+  try {
+    let result;
+    if (q) {
+      const searchQuery = q
+        .trim()
+        .split(/\s+/)
+        .map((term) => `${term}:*`)
+        .join(' & ');
 
-  return c.json(
-    result.map((s: any) => {
-      const { search_vector: _sv, searchVector: _sv2, rank: _r, ...rest } = s;
-      return {
-        ...rest,
-        name: toFriendlyCase(rest.name),
-        brand: toFriendlyCase(rest.brand),
-      };
-    }),
-  );
+      result = await db.execute(sql`
+        WITH matches AS (
+          (
+            SELECT *, ts_rank(search_vector, to_tsquery('english', ${searchQuery})) as rank
+            FROM supplements
+            WHERE search_vector @@ to_tsquery('english', ${searchQuery})
+            LIMIT ${limit + offset + 100}
+          )
+          UNION ALL
+          (
+            SELECT *, similarity(name, ${q}) as rank
+            FROM supplements
+            WHERE name % ${q}
+            LIMIT ${limit + offset + 100}
+          )
+        )
+        SELECT * FROM (
+          SELECT DISTINCT ON (id) * FROM matches
+          ORDER BY id, rank DESC
+        ) AS deduped
+        ORDER BY rank DESC
+        LIMIT ${limit}
+        OFFSET ${offset}
+      `);
+    } else {
+      result = await db.execute(sql`
+        SELECT *, 1 as rank
+        FROM supplements
+        ORDER BY name ASC
+        LIMIT ${limit}
+        OFFSET ${offset}
+      `);
+    }
+
+    const rows = Array.isArray(result) ? result : (result.rows ?? []);
+
+    return c.json(
+      rows.map((s: any) => {
+        const { search_vector: _sv, searchVector: _sv2, rank: _r, ...rest } = s;
+        return {
+          ...rest,
+          name: toFriendlyCase(rest.name),
+          brand: toFriendlyCase(rest.brand),
+        };
+      }),
+    );
+  } catch (e) {
+    return c.json({ error: String(e) }, 500);
+  }
 });
 
 const listSupplementsRoute = createRoute({

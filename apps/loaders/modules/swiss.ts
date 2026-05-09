@@ -1,22 +1,37 @@
 import { $ } from 'bun';
-import { foodsTable, foodNutrientsTable, nutrientsTable } from '@repo/db/src/schema';
+import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/bun-sql';
-import { sql } from 'drizzle-orm';
-import { getLogger } from '../utils/logger';
-import * as XLSX from 'xlsx';
+import { foodsTable } from '@repo/db/src/schema';
 import { env } from '@repo/env-manager';
+import * as XLSX from 'xlsx';
+import { getLogger } from '../utils/logger';
+import { insertFoodNutrientLinks, syncNutrientMeta, type NutrientMeta } from '../utils/nutrients';
 
 const DATA_SOURCE = 'swiss';
 const DOWNLOAD_URL =
   'https://webapp.prod.blv.foodcase-services.com/wp-content/uploads/2025/07/Swiss_food_composition_database.xlsx';
 const FILE_PATH = '/tmp/swiss_food_data.xlsx';
+const NUTRIENT_HEADER_RE = /\((g|mg|µg|kJ|kcal|RE|RAE)\)$/;
+
+type ParsedSheet = {
+  sheetName: string;
+  rows: any[];
+  nutrientKeys: string[];
+};
+
+const parseNutrientMeta = (key: string): NutrientMeta => {
+  const match = key.match(/^(.*?)\s*\((.*?)\)$/);
+  return {
+    name: match?.[1]?.trim() || key,
+    unit: match?.[2]?.trim() || 'unit',
+  };
+};
 
 export const loadSwissFoods = async () => {
   const logger = getLogger();
   const sqlClient = new Bun.SQL(env.DATABASE_URL);
   const db = drizzle(sqlClient);
 
-  // Clear cache before downloading
   await $`rm -f ${FILE_PATH}`.quiet();
   logger.setProgress(DATA_SOURCE, 0, 100, 'downloading Swiss database');
   const response = await fetch(DOWNLOAD_URL);
@@ -25,9 +40,9 @@ export const loadSwissFoods = async () => {
 
   logger.setProgress(DATA_SOURCE, 10, 100, 'parsing Excel');
   const workbook = XLSX.readFile(FILE_PATH);
-
   const sheetsToProcess = ['Generic Foods', 'Branded foods'];
-  const nutrientIdMap = new Map<string, number>();
+  const parsedSheets: ParsedSheet[] = [];
+  const nutrientMetaByHeader = new Map<string, NutrientMeta>();
 
   for (const sheetName of sheetsToProcess) {
     const sheet = workbook.Sheets[sheetName];
@@ -35,42 +50,36 @@ export const loadSwissFoods = async () => {
 
     logger.info(`processing sheet: ${sheetName}`);
     const rows = XLSX.utils.sheet_to_json(sheet, { range: 2 }) as any[];
+    if (!rows.length) continue;
 
-    // Identify nutrient columns: columns that contain a unit in parentheses
-    if (rows.length === 0) continue;
-    const allKeys = Object.keys(rows[0]);
-    const nutrientKeys = allKeys.filter((k) => k.match(/\((g|mg|µg|kJ|kcal|RE|RAE)\)$/));
+    const nutrientKeys = Object.keys(rows[0]).filter((key) => NUTRIENT_HEADER_RE.test(key));
+    for (const key of nutrientKeys) nutrientMetaByHeader.set(key, parseNutrientMeta(key));
 
-    logger.setProgress(DATA_SOURCE, 30, 100, `syncing nutrients from ${sheetName}`);
-    for (const key of nutrientKeys) {
-      if (nutrientIdMap.has(key)) continue;
+    parsedSheets.push({ sheetName, rows, nutrientKeys });
+  }
 
-      const match = key.match(/^(.*?)\s*\((.*?)\)$/);
-      const name = match && match[1] ? match[1].trim() : key;
-      const unit = match && match[2] ? match[2].trim() : 'unit';
+  logger.info('syncing nutrient metadata...');
+  const uniqueNutrients = Array.from(
+    new Map(Array.from(nutrientMetaByHeader.values()).map((meta) => [`${meta.name}|${meta.unit}`, meta])).values(),
+  );
+  const nutrientIdMap = await syncNutrientMeta(sqlClient, uniqueNutrients);
 
-      // Try insert first, if conflict use onConflictDoNothing
-      await db.insert(nutrientsTable).values({ name, unit }).onConflictDoNothing();
+  const nutrientIdByHeader = new Map<string, number>();
+  for (const [header, meta] of nutrientMetaByHeader) {
+    const nutrientId = nutrientIdMap.get(`${meta.name}|${meta.unit}`);
+    if (nutrientId) nutrientIdByHeader.set(header, nutrientId);
+  }
 
-      // Get the id (either from insert or from existing record)
-      const [existing] = await db
-        .select({
-          id: nutrientsTable.id,
-        })
-        .from(nutrientsTable)
-        .where(sql`${nutrientsTable.name} = ${name} AND ${nutrientsTable.unit} = ${unit}`)
-        .limit(1);
+  await db.delete(foodsTable).where(eq(foodsTable.dataSource, DATA_SOURCE));
 
-      if (existing) nutrientIdMap.set(key, existing.id);
-    }
-
-    logger.setProgress(DATA_SOURCE, 50, 100, `inserting foods from ${sheetName}`);
+  for (const { sheetName, rows, nutrientKeys } of parsedSheets) {
+    logger.info(`inserting foods from ${sheetName}`);
     const foodLinks: Array<{ foodId: number; nutrientId: number; value: string }> = [];
 
     for (let i = 0; i < rows.length; i += 500) {
       const chunk = rows.slice(i, i + 500);
       const foodsToInsert = chunk.map((r) => ({
-        externalId: String(r['ID'] || r['ID SwissFIR']),
+        externalId: String(r['ID'] ?? r['ID SwissFIR'] ?? ''),
         dataSource: DATA_SOURCE,
         name: String(r['Name']).slice(0, 2056),
         brand: sheetName === 'Branded foods' ? String(r['Brand'] || 'Generic') : 'Generic',
@@ -84,14 +93,13 @@ export const loadSwissFoods = async () => {
         .returning({ id: foodsTable.id, externalId: foodsTable.externalId });
       const supIdMap = new Map(insertedFoods.map((s) => [s.externalId, s.id]));
 
-      // Prepare nutrient links for this chunk
       for (const r of chunk) {
-        const foodId = supIdMap.get(String(r['ID'] || r['ID SwissFIR']));
+        const foodId = supIdMap.get(String(r['ID'] ?? r['ID SwissFIR'] ?? ''));
         if (!foodId) continue;
 
         for (const key of nutrientKeys) {
           const val = r[key];
-          const nutrientId = nutrientIdMap.get(key);
+          const nutrientId = nutrientIdByHeader.get(key);
           if (nutrientId && val !== undefined && val !== null && val !== '') {
             foodLinks.push({
               foodId,
@@ -99,19 +107,19 @@ export const loadSwissFoods = async () => {
               value: String(val),
             });
           }
-
-          if (foodLinks.length >= 1000) {
-            await db.insert(foodNutrientsTable).values(foodLinks).onConflictDoNothing();
-            foodLinks.length = 0;
-          }
         }
+      }
+
+      if (foodLinks.length >= 1000) {
+        await insertFoodNutrientLinks(sqlClient, foodLinks);
+        foodLinks.length = 0;
       }
 
       logger.setProgress(DATA_SOURCE, 50 + Math.floor((i / rows.length) * 40), 100, `loading ${sheetName}`);
     }
 
-    if (foodLinks.length > 0) {
-      await db.insert(foodNutrientsTable).values(foodLinks).onConflictDoNothing();
+    if (foodLinks.length) {
+      await insertFoodNutrientLinks(sqlClient, foodLinks);
     }
   }
 

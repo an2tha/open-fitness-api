@@ -188,9 +188,14 @@ async function run() {
     if (!hasMasterKey) {
       const masterKey = randomBytes(48).toString('base64url'); // 64-char, 384-bit entropy
       const separator = envContents.endsWith('\n') ? '' : '\n';
-      writeFileSync('.env', `${envContents}${separator}\n# Auto-generated master key for API key management\nMASTER_KEY=${masterKey}\n`);
+      writeFileSync(
+        '.env',
+        `${envContents}${separator}\n# Auto-generated master key for API key management\nMASTER_KEY=${masterKey}\n`,
+      );
       UI.success(`MASTER_KEY generated and written to .env`);
-      console.log(`\n  ${colors.bold}${colors.yellow}⚠  Save this master key — it controls API key creation:${colors.reset}`);
+      console.log(
+        `\n  ${colors.bold}${colors.yellow}⚠  Save this master key — it controls API key creation:${colors.reset}`,
+      );
       console.log(`  ${colors.cyan}${masterKey}${colors.reset}\n`);
     } else {
       UI.info('MASTER_KEY already present in .env');
@@ -199,9 +204,11 @@ async function run() {
 
   UI.step('Infrastructure');
   try {
+    await runShellWithSpinner('bun run build', 'Building workspace and Next.js artifacts');
     await runShellWithSpinner('docker compose up -d --build', 'Building and starting Docker containers');
   } catch (_e1) {
     try {
+      await runShellWithSpinner('bun run build', 'Building workspace and Next.js artifacts');
       await runShellWithSpinner('docker-compose up -d --build', 'Building and starting Docker containers (fallback)');
     } catch (e2) {
       UI.error('Docker failure. Details:');
@@ -210,7 +217,6 @@ async function run() {
       process.exit(1);
     }
   }
-
 
   UI.step('Data Acquisition');
   const loadNow = await confirm({
@@ -271,16 +277,12 @@ async function run() {
       ],
     });
 
-    await runShellWithSpinner(
-      `bun run normalize all`,
-    );
+    await runShellWithSpinner(`bun run normalize all`);
   }
 
   UI.step('Completion');
   console.log(`\n  ${colors.bold}App Endpoint:${colors.reset}  ${colors.cyan}http://localhost:3000${colors.reset}`);
-  console.log(
-    `  ${colors.bold}API Docs:${colors.reset}      ${colors.cyan}http://localhost:3000/docs${colors.reset}`,
-  );
+  console.log(`  ${colors.bold}API Docs:${colors.reset}      ${colors.cyan}http://localhost:3000/docs${colors.reset}`);
   console.log(`\n  Run ${colors.green}bun run dev${colors.reset} to start the development environment.\n`);
 }
 

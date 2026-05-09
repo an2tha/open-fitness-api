@@ -14,7 +14,7 @@
   },
   "scripts": {
     "start": "bun run index.ts",
-    "build": "bun build ./index.ts --compile --outfile ofdata-normalizer",
+    "build": "bun build ./index.ts --target=bun",
     "test": "bun test",
     "lint": "eslint . && prettier --check ."
   },
