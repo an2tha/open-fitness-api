@@ -14,12 +14,12 @@ services:
       BETTER_AUTH_URL: http://localhost:3000/api/v1
       NEXT_PUBLIC_BETTER_AUTH_URL: http://localhost:3000/api/v1
     volumes:
-      - ./Apps/web/.next/standalone:/usr/src/app
-      - ./Apps/web/.next/static:/usr/src/app/.next/static
-      - ./Apps/web/.next/static:/usr/src/app/Apps/web/.next/static
-      - ./Apps/web/public:/usr/src/app/public
-      - ./Apps/web/public:/usr/src/app/Apps/web/public
-    command: node Apps/web/server.js
+      - ./apps/web/.next/standalone:/usr/src/app
+      - ./apps/web/.next/static:/usr/src/app/.next/static
+      - ./apps/web/.next/static:/usr/src/app/apps/web/.next/static
+      - ./apps/web/public:/usr/src/app/public
+      - ./apps/web/public:/usr/src/app/apps/web/public
+    command: node apps/web/server.js
     restart: unless-stopped
     networks:
       - fitness_net
