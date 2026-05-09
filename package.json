@@ -6,7 +6,6 @@
     "build:docker": "bun run build",
     "docker:build": "bun run build",
     "build": "turbo run build",
-    "setup": "bun run scripts/setup.ts",
     "start": "docker compose up -d",
     "start:db": "docker compose up -d db",
     "stop": "docker compose stop",

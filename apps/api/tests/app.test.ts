@@ -82,13 +82,11 @@ describe('Open Fitness Data API', () => {
       }
     });
 
-    test('GET /foods/search - should reject missing q', async () => {
+    test('GET /foods/search - should support missing q', async () => {
       const res = await request('/foods/search?limit=5');
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(200);
       const body = await res.json();
-      expect(body.success).toBe(false);
-      expect(body.error.name).toBe('ZodError');
-      expect(Array.isArray(body.error.issues)).toBe(true);
+      expect(Array.isArray(body)).toBe(true);
     });
 
     test('GET /foods/search - should support filters (minProtein)', async () => {

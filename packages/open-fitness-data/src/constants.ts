@@ -1,1 +1,1 @@
-export const DEFAULT_BASE_URL = 'https://api.ofdata.dev/v1';
+export const DEFAULT_BASE_URL = 'http://localhost:3000/api/v1';

@@ -43,7 +43,7 @@ describe('open-fitness-data client', () => {
     expect(calls).toHaveLength(1);
 
     const url = new URL(String(calls[0]?.input));
-    expect(url.pathname).toBe('/v1/foods/search');
+    expect(url.pathname).toBe('/api/v1/foods/search');
     expect(url.searchParams.get('q')).toBe('kale');
     expect(url.searchParams.get('limit')).toBe('10');
     expect(url.searchParams.get('offset')).toBe('2');

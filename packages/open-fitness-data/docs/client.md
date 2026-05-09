@@ -4,7 +4,7 @@
 
 ```ts
 createOfdClient({
-  baseUrl: 'https://api.ofdata.dev/v1',
+  baseUrl: 'http://localhost:3000/api/v1',
   apiKey: 'ofd_xxx',
   apiKeyHeader: 'Authorization',
   headers: { 'X-Client': 'my-app' },
@@ -14,7 +14,7 @@ createOfdClient({
 
 ### Options
 
-- `baseUrl`: API root, defaults to `https://api.ofdata.dev/v1`
+- `baseUrl`: API root, defaults to `http://localhost:3000/api/v1`
 - `apiKey`: sent on every request
 - `apiKeyHeader`: choose `Authorization` (Bearer token) or `X-API-Key`
 - `headers`: merged into every request

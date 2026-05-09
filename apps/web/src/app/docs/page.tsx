@@ -59,7 +59,7 @@ const ENDPOINTS = [
         </div>
       </>
     ),
-    req: `curl -X GET "https://api.ofdata.dev/v1/foods/search?q=kale" \\\n     -H "Authorization: Bearer YOUR_KEY"`,
+    req: `curl -X GET "http://localhost:3000/api/v1/foods/search?q=kale" \\\n     -H "Authorization: Bearer YOUR_KEY"`,
     res: `{
   "status": "success",
   "metadata": { "count": 1, "query": "kale" },
@@ -96,7 +96,7 @@ const ENDPOINTS = [
         </p>
       </div>
     ),
-    req: `curl -X GET "https://api.ofdata.dev/v1/foods/fd_982x1z" \\\n     -H "Authorization: Bearer YOUR_KEY"`,
+    req: `curl -X GET "http://localhost:3000/api/v1/foods/fd_982x1z" \\\n     -H "Authorization: Bearer YOUR_KEY"`,
   },
   {
     id: 'search-exercises',
@@ -138,7 +138,7 @@ const ENDPOINTS = [
         </div>
       </>
     ),
-    req: `curl -X GET "https://api.ofdata.dev/v1/exercises/search?muscle=legs" \\\n     -H "Authorization: Bearer YOUR_KEY"`,
+    req: `curl -X GET "http://localhost:3000/api/v1/exercises/search?muscle=legs" \\\n     -H "Authorization: Bearer YOUR_KEY"`,
     res: `{
   "status": "success",
   "data": [
@@ -174,7 +174,7 @@ const ENDPOINTS = [
         </p>
       </div>
     ),
-    req: `curl -X GET "https://api.ofdata.dev/v1/exercises/ex_m291pp" \\\n     -H "Authorization: Bearer YOUR_KEY"`,
+    req: `curl -X GET "http://localhost:3000/api/v1/exercises/ex_m291pp" \\\n     -H "Authorization: Bearer YOUR_KEY"`,
   },
   {
     id: 'search-supplements',
@@ -214,7 +214,7 @@ const ENDPOINTS = [
         </div>
       </>
     ),
-    req: `curl -X GET "https://api.ofdata.dev/v1/supplements/search?q=creatine" \\\n     -H "Authorization: Bearer YOUR_KEY"`,
+    req: `curl -X GET "http://localhost:3000/api/v1/supplements/search?q=creatine" \\\n     -H "Authorization: Bearer YOUR_KEY"`,
     res: `{
   "status": "success",
   "data": [
@@ -251,7 +251,7 @@ const ENDPOINTS = [
         </p>
       </div>
     ),
-    req: `curl -X GET "https://api.ofdata.dev/v1/supplements/sup_cr8821" \\\n     -H "Authorization: Bearer YOUR_KEY"`,
+    req: `curl -X GET "http://localhost:3000/api/v1/supplements/sup_cr8821" \\\n     -H "Authorization: Bearer YOUR_KEY"`,
   },
   {
     id: 'search-nutrients',
@@ -290,7 +290,7 @@ const ENDPOINTS = [
         </div>
       </>
     ),
-    req: `curl -X GET "https://api.ofdata.dev/v1/nutrients/search?q=zinc" \\\n     -H "Authorization: Bearer YOUR_KEY"`,
+    req: `curl -X GET "http://localhost:3000/api/v1/nutrients/search?q=zinc" \\\n     -H "Authorization: Bearer YOUR_KEY"`,
     res: `{
   "status": "success",
   "data": [
@@ -327,7 +327,7 @@ const ENDPOINTS = [
         </p>
       </div>
     ),
-    req: `curl -X GET "https://api.ofdata.dev/v1/nutrients/nut_zn22" \\\n     -H "Authorization: Bearer YOUR_KEY"`,
+    req: `curl -X GET "http://localhost:3000/api/v1/nutrients/nut_zn22" \\\n     -H "Authorization: Bearer YOUR_KEY"`,
   },
 ];
 
