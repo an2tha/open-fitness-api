@@ -18,6 +18,8 @@ const WadaSchema = z.object({
   ),
 });
 
+type WadaSubstance = z.infer<typeof WadaSchema>['substances'][number];
+
 export const normalizeWada = async (verbose = false, purge = false) => {
   const logger = getLogger(verbose);
 
@@ -25,6 +27,7 @@ export const normalizeWada = async (verbose = false, purge = false) => {
 
   logger.info('Fetching WADA Prohibited List PDF...');
   const response = await fetch(PDF_URL);
+  if (!response.ok) throw new Error(`WADA PDF download failed: ${response.status}`);
   await Bun.write(PDF_PATH, await response.arrayBuffer());
 
   logger.info('Extracting text from PDF...');
@@ -32,11 +35,12 @@ export const normalizeWada = async (verbose = false, purge = false) => {
   const text = await Bun.file(TXT_PATH).text();
 
   const sections = text.split(/\f/);
-  const allSubstances: any[] = [];
+  const allSubstances: WadaSubstance[] = [];
 
   const totalSections = sections.length;
   for (let i = 0; i < sections.length; i++) {
-    const section = sections[i].trim();
+    const section = sections[i]?.trim();
+    if (!section) continue;
 
     if (section.length < 200) continue;
     if (section.toLowerCase().includes('table of contents')) continue;

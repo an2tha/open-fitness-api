@@ -15,6 +15,7 @@ cp .env.example .env
 ```
 
 Open `.env` and configure your settings. Key variables include:
+
 - `DATABASE_URL`: Connection string for your PostgreSQL database.
 - `API_KEY_AUTH_ENABLED`: Set to `true` (default) to require API keys for all requests.
 - `BETTER_AUTH_SECRET`: A random string used for session security.
@@ -37,7 +38,7 @@ Load the fitness data into your database. You can load all sources at once:
 bun run load all
 ```
 
-*Individual sources can also be loaded, e.g., `bun run load foods usda`.*
+_Individual sources can also be loaded, e.g., `bun run load foods usda`._
 
 ### 4. Start Development Server
 
@@ -54,14 +55,18 @@ The app will be available at `http://localhost:3000` and API documentation at `h
 Open Fitness Data uses [Better Auth](https://www.better-auth.com/) with the API Key plugin for secure access.
 
 ### Creating an API Key
+
 By default, the dashboard at `http://localhost:3000/dashboard` allows you to create and manage your API keys.
 
 ### Using the API Key
+
 Include your API key in the request headers:
+
 - `Authorization: Bearer <your_key>`
 - OR `X-API-Key: <your_key>`
 
 ### Disabling Authentication (Local Dev only)
+
 To disable API key requirement for local testing, set `API_KEY_AUTH_ENABLED=false` in your `.env` file.
 
 ## Management Commands
@@ -115,4 +120,3 @@ Check out the [examples](./examples) directory for sample applications using the
 - [CLI Food Search](./examples/cli-food-search): Simple command-line tool to search for foods.
 - [Nutrition Analyzer](./examples/nutrition-analyzer): Calculate total nutrition for a meal.
 - [Exercise Finder](./examples/exercise-finder): Find exercises for specific muscles.
-

@@ -1,9 +1,5 @@
-import { Context, Next } from 'hono';
-import { db } from '@repo/db';
-import { apiKeysTable } from '@repo/db/src/schema';
-import { eq, sql } from 'drizzle-orm';
-import { hashApiKey } from '../lib/api-key';
-import { UnauthorizedError, ForbiddenError, RateLimitError } from '../lib/error';
+import type { Context, Next } from 'hono';
+import { UnauthorizedError, ForbiddenError } from '../lib/error';
 import { env } from '@repo/env-manager';
 import { auth } from '../routes/auth';
 
@@ -27,18 +23,6 @@ function extractApiKey(c: Context): string | null {
 
   return null;
 }
-
-/** In-memory per-key rate limit tracking */
-const keyRateLimits = new Map<number, { count: number; resetTime: number }>();
-
-/** Clean up expired entries every 60s */
-setInterval(() => {
-  const now = Date.now();
-  const entries = Array.from(keyRateLimits.entries());
-  for (const [key, value] of entries) {
-    if (value.resetTime < now) keyRateLimits.delete(key);
-  }
-}, 60_000);
 
 /**
  * Middleware that requires a valid API key on every request.

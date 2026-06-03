@@ -48,6 +48,7 @@
     "build": "bunx tsc -p tsconfig.build.json",
     "test": "bun test && bunx tsc -p tests/tsconfig.json",
     "test:types": "bunx tsc -p tests/tsconfig.json",
+    "check-types": "bunx tsc -p tsconfig.build.json && bunx tsc -p tests/tsconfig.json",
     "prepack": "bun run build"
   },
   "dependencies": {

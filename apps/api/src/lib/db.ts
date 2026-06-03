@@ -1,4 +1,5 @@
 import { db } from '@repo/db';
+import { env } from '@repo/env-manager';
 import { sql } from 'drizzle-orm';
 
 export { db } from '@repo/db';
@@ -8,7 +9,9 @@ export async function checkDatabaseConnection(): Promise<boolean> {
     await db.execute(sql`SELECT 1`);
     return true;
   } catch (error) {
-    console.error('Database connection failed:', error);
+    if (env.NODE_ENV !== 'test') {
+      console.error('Database connection failed:', error);
+    }
     return false;
   }
 }

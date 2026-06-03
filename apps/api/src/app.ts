@@ -90,7 +90,7 @@ export function createApp(options: { enableApiKeyAuth?: boolean } = {}) {
   <script>
     window.onload = () => {
       window.SwaggerUIBundle({
-        url: '/api/v1/openapi.json',
+        url: '${env.API_PREFIX}/openapi.json',
         dom_id: '#swagger-ui',
         presets: [
           window.SwaggerUIBundle.presets.apis,
@@ -114,6 +114,7 @@ export function createApp(options: { enableApiKeyAuth?: boolean } = {}) {
         error: {
           code: 'NOT_FOUND',
           message: 'Resource not found',
+          requestId: (c as any).get('requestId') || 'unknown',
         },
       },
       404,

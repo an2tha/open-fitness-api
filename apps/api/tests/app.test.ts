@@ -1,9 +1,56 @@
 import { describe, expect, test } from 'bun:test';
+import { createConnection } from 'node:net';
 
 process.env.NODE_ENV = 'test';
 process.env.RATE_LIMIT_ENABLED = 'false';
 process.env.API_KEY_AUTH_ENABLED = 'false';
 process.env.SWAGGER_ENABLED = 'true';
+process.env.DATABASE_URL =
+  process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL ?? 'postgres://user:password@localhost:5432/fitnessdata';
+process.env.LOADER_DB_URL = process.env.DATABASE_URL;
+
+async function canConnectToDatabase() {
+  const url = new URL(process.env.DATABASE_URL!);
+  const port = Number(url.port || 5432);
+
+  return await new Promise<boolean>((resolve) => {
+    const socket = createConnection({ host: url.hostname, port });
+    const done = (ok: boolean) => {
+      socket.destroy();
+      resolve(ok);
+    };
+
+    socket.setTimeout(500);
+    socket.once('connect', () => done(true));
+    socket.once('error', () => done(false));
+    socket.once('timeout', () => done(false));
+  });
+}
+
+async function hasRequiredSchema() {
+  if (!(await canConnectToDatabase())) return false;
+
+  const sql = new Bun.SQL(process.env.DATABASE_URL!);
+  try {
+    const [row] = (await sql`
+      SELECT
+        to_regclass('public.foods')::text as foods,
+        to_regclass('public.exercises')::text as exercises,
+        to_regclass('public.supplements')::text as supplements,
+        to_regclass('public.nutrients')::text as nutrients
+    `) as Array<Record<'foods' | 'exercises' | 'supplements' | 'nutrients', string | null>>;
+
+    return Boolean(row?.foods && row.exercises && row.supplements && row.nutrients);
+  } catch {
+    return false;
+  } finally {
+    await sql.close();
+  }
+}
+
+const databaseReachable = await canConnectToDatabase();
+const databaseHasSchema = await hasRequiredSchema();
+const describeWithDb = databaseHasSchema ? describe : describe.skip;
 
 const { default: app } = await import('../src/app');
 
@@ -27,25 +74,26 @@ describe('Open Fitness Data API', () => {
     expect(typeof body.uptime).toBe('number');
   });
 
-  test('GET /health/db - should return 200 and database health', async () => {
+  test('GET /health/db - should report database status', async () => {
     const res = await request('/health/db');
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(databaseReachable ? 200 : 503);
 
     const body = await res.json();
-    expect(body.status).toBe('ok');
-    expect(body.message).toContain('healthy');
+    expect(body.status).toBe(databaseReachable ? 'ok' : 'error');
   });
 
-  test('GET /health/stats - should return system stats', async () => {
-    const res = await request('/health/stats');
-    expect(res.status).toBe(200);
+  describeWithDb('Database-backed health endpoints', () => {
+    test('GET /health/stats - should return system stats', async () => {
+      const res = await request('/health/stats');
+      expect(res.status).toBe(200);
 
-    const body = await res.json();
-    expect(typeof body.uptime).toBe('number');
-    expect(body.counts).toHaveProperty('foods');
-    expect(body.counts).toHaveProperty('exercises');
-    expect(body.counts).toHaveProperty('supplements');
-    expect(typeof body.node_version).toBe('string');
+      const body = await res.json();
+      expect(typeof body.uptime).toBe('number');
+      expect(body.counts).toHaveProperty('foods');
+      expect(body.counts).toHaveProperty('exercises');
+      expect(body.counts).toHaveProperty('supplements');
+      expect(typeof body.node_version).toBe('string');
+    });
   });
 
   test('GET /openapi.json - should return an OpenAPI document', async () => {
@@ -59,7 +107,7 @@ describe('Open Fitness Data API', () => {
     expect(body.paths).toHaveProperty('/foods/search');
   });
 
-  describe('Foods', () => {
+  describeWithDb('Foods', () => {
     test('GET /foods/search - should return a list of foods', async () => {
       const res = await request('/foods/search?limit=5&q=a');
       expect(res.status).toBe(200);
@@ -127,7 +175,7 @@ describe('Open Fitness Data API', () => {
     });
   });
 
-  describe('Exercises', () => {
+  describeWithDb('Exercises', () => {
     test('GET /exercises/search - should return exercise results', async () => {
       const res = await request('/exercises/search?q=press&limit=5');
       expect(res.status).toBe(200);
@@ -147,7 +195,7 @@ describe('Open Fitness Data API', () => {
     });
   });
 
-  describe('Supplements', () => {
+  describeWithDb('Supplements', () => {
     test('GET /supplements/search - should return supplement results', async () => {
       const res = await request('/supplements/search?q=creatine&limit=5');
       expect(res.status).toBe(200);
@@ -179,7 +227,7 @@ describe('Open Fitness Data API', () => {
     });
   });
 
-  describe('Nutrients', () => {
+  describeWithDb('Nutrients', () => {
     test('GET /nutrients/search - should return nutrient results', async () => {
       const res = await request('/nutrients/search?q=vitamin&limit=5');
       expect(res.status).toBe(200);

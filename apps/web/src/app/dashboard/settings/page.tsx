@@ -1,7 +1,7 @@
 'use client';
 
 import { RefreshCw, Save } from 'lucide-react';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardSidebar from '../sidebar';
 import { authClient } from '../../auth/client';
@@ -25,7 +25,7 @@ export default function DashboardSettingsPage() {
   const [allowNewLogins, setAllowNewLogins] = useState(true);
   const [initialAllowNewLogins, setInitialAllowNewLogins] = useState(true);
 
-  const sessionToken = session.data?.session?.token;
+  const isAuthenticated = Boolean(session.data?.user);
   const isPending = session.isPending;
   const isDirty = allowNewLogins !== initialAllowNewLogins;
 
@@ -35,7 +35,7 @@ export default function DashboardSettingsPage() {
 
   useEffect(() => {
     if (!hydrated || isPending) return;
-    if (!sessionToken) {
+    if (!isAuthenticated) {
       router.push('/auth');
       return;
     }
@@ -68,7 +68,7 @@ export default function DashboardSettingsPage() {
     })();
 
     return () => controller.abort();
-  }, [hydrated, isPending, router, sessionToken]);
+  }, [hydrated, isPending, isAuthenticated, router]);
 
   const summary = allowNewLogins
     ? 'Open to new registrations.'
@@ -113,7 +113,7 @@ export default function DashboardSettingsPage() {
     router.push('/auth');
   };
 
-  if (!hydrated || isPending || !sessionToken) {
+  if (!hydrated || isPending || !isAuthenticated) {
     return <div className="bg-[#0a0a0a] min-h-screen" />;
   }
 

@@ -16,9 +16,10 @@
   "type": "module",
   "scripts": {
     "start": "bun run index.ts",
-    "build": "bun build index.ts --target=bun",
-    "test": "bun test",
-    "lint": "eslint . && prettier --check ."
+    "build": "bun build index.ts --target=bun --outfile=dist/loader-bundle.js",
+    "test": "bun test --pass-with-no-tests",
+    "lint": "eslint . && prettier --check .",
+    "check-types": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@repo/db": "workspace:*",

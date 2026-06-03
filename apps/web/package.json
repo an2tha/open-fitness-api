@@ -4,7 +4,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "lint": "eslint . && prettier --check .",
+    "check-types": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@better-auth/api-key": "^1.6.9",

@@ -1,4 +1,4 @@
-import { pgTable, integer, varchar, uniqueIndex, index } from 'drizzle-orm/pg-core';
+import { pgTable, integer, varchar, index } from 'drizzle-orm/pg-core';
 import { exercisesTable } from './exercises';
 
 export const musclesTable = pgTable(

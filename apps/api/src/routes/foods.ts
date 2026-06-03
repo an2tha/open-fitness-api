@@ -3,6 +3,12 @@ import { db } from '@repo/db';
 import { foodsTable, foodNutrientsTable, nutrientsTable } from '@repo/db/src/schema';
 import { eq, sql, inArray } from 'drizzle-orm';
 import { NotFoundError } from '../lib/error';
+import {
+  paginationQuerySchema,
+  optionalFilterString,
+  optionalNonNegativeNumber,
+  optionalSearchString,
+} from '../lib/query';
 import { toFriendlyCase } from '../lib/utils';
 
 const nutrientInfoSchema = z.object({
@@ -74,10 +80,7 @@ const listFoodsRoute = createRoute({
   summary: 'List all foods',
   description: 'Retrieve a list of all foods with pagination',
   request: {
-    query: z.object({
-      limit: z.string().default('50').transform(Number),
-      offset: z.string().default('0').transform(Number),
-    }),
+    query: paginationQuerySchema,
   },
   responses: {
     200: {
@@ -147,19 +150,17 @@ const searchFoodsRoute = createRoute({
   summary: 'Search foods',
   description: 'Search foods using full-text and fuzzy search with filters',
   request: {
-    query: z.object({
-      q: z.string().optional(),
-      limit: z.string().default('50').transform(Number),
-      offset: z.string().default('0').transform(Number),
-      brand: z.string().optional(),
-      dataSource: z.string().optional(),
-      category: z.string().optional(),
-      minProtein: z.string().optional(),
-      maxProtein: z.string().optional(),
-      minCalories: z.string().optional(),
-      maxCalories: z.string().optional(),
-      nutrientName: z.string().optional(),
-      minNutrientValue: z.string().optional(),
+    query: paginationQuerySchema.extend({
+      q: optionalSearchString,
+      brand: optionalFilterString,
+      dataSource: optionalFilterString,
+      category: optionalFilterString,
+      minProtein: optionalNonNegativeNumber,
+      maxProtein: optionalNonNegativeNumber,
+      minCalories: optionalNonNegativeNumber,
+      maxCalories: optionalNonNegativeNumber,
+      nutrientName: optionalFilterString,
+      minNutrientValue: optionalNonNegativeNumber,
     }),
   },
   responses: {
@@ -202,10 +203,10 @@ foods.openapi(searchFoodsRoute, async (c: any) => {
     return sql`CAST(NULLIF(CASE WHEN ${cleaned} ~ '^[0-9]+(\\.[0-9]+)?$' THEN ${cleaned} ELSE NULL END, '') AS NUMERIC)`;
   };
 
-  if (minProtein) conditions.push(sql`${robustCast(sql`protein`)} >= ${minProtein}`);
-  if (maxProtein) conditions.push(sql`${robustCast(sql`protein`)} <= ${maxProtein}`);
-  if (minCalories) conditions.push(sql`${robustCast(sql`calories`)} >= ${minCalories}`);
-  if (maxCalories) conditions.push(sql`${robustCast(sql`calories`)} <= ${maxCalories}`);
+  if (minProtein !== undefined) conditions.push(sql`${robustCast(sql`protein`)} >= ${minProtein}`);
+  if (maxProtein !== undefined) conditions.push(sql`${robustCast(sql`protein`)} <= ${maxProtein}`);
+  if (minCalories !== undefined) conditions.push(sql`${robustCast(sql`calories`)} >= ${minCalories}`);
+  if (maxCalories !== undefined) conditions.push(sql`${robustCast(sql`calories`)} <= ${maxCalories}`);
 
   if (nutrientName) {
     const nutrientResults = await db
@@ -219,7 +220,7 @@ foods.openapi(searchFoodsRoute, async (c: any) => {
         SELECT 1 FROM food_nutrients fn
         WHERE fn."foodId" = f.id
         AND fn."nutrientId" IN (${sql.join(ids, sql`, `)})
-        ${minNutrientValue ? sql`AND ${robustCast(sql`fn.value`)} >= ${minNutrientValue}` : sql``}
+        ${minNutrientValue !== undefined ? sql`AND ${robustCast(sql`fn.value`)} >= ${minNutrientValue}` : sql``}
       )`);
     } else {
       conditions.push(sql`FALSE`);
@@ -230,18 +231,12 @@ foods.openapi(searchFoodsRoute, async (c: any) => {
 
   let foodsResult;
   if (q) {
-    const searchQuery = q
-      .trim()
-      .split(/\s+/)
-      .map((term: any) => `${term}:*`)
-      .join(' & ');
-
     foodsResult = await db.execute(sql`
       WITH matches AS (
         (
-          SELECT *, ts_rank(search_vector, to_tsquery('english', ${searchQuery})) as rank
+          SELECT *, ts_rank(search_vector, websearch_to_tsquery('english', ${q})) as rank
           FROM foods as f
-          WHERE f.search_vector @@ to_tsquery('english', ${searchQuery})${whereClause}
+          WHERE f.search_vector @@ websearch_to_tsquery('english', ${q})${whereClause}
           LIMIT ${limit + offset + 100}
         )
         UNION ALL

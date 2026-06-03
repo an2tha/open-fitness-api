@@ -9,9 +9,9 @@ services:
     environment:
       NODE_ENV: development
       SWAGGER_ENABLED: 'true'
-      DATABASE_URL: postgres://user:password@db:5432/fitnessdata
-      BETTER_AUTH_URL: http://localhost:3000/api/v1
-      NEXT_PUBLIC_BETTER_AUTH_URL: http://localhost:3000/api/v1
+      DATABASE_URL: postgres://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-fitnessdata}
+      BETTER_AUTH_URL: http://localhost:${WEB_PORT:-3000}/api/v1
+      NEXT_PUBLIC_BETTER_AUTH_URL: http://localhost:${WEB_PORT:-3000}/api/v1
     volumes:
       - .:/usr/src/app
       - web_node_modules:/usr/src/app/node_modules
@@ -25,9 +25,9 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: fitnessdata
+      POSTGRES_USER: ${POSTGRES_USER:-user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-fitnessdata}
     ports:
       - '5432:5432'
     healthcheck:

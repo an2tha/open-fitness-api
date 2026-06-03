@@ -15,6 +15,7 @@ const colors = {
   cyan: '\x1b[36m',
   yellow: '\x1b[33m',
   green: '\x1b[32m',
+  magenta: '\x1b[35m',
   bold: '\x1b[1m',
   dim: '\x1b[2m',
 };
@@ -27,6 +28,10 @@ export const mergeNutrients = async (verbose = false) => {
   const [mappingCountResult] = await db.select({ value: count() }).from(nutrientsNormalizedMappingTable);
   const [foodNutrientCountResult] = await db.select({ value: count() }).from(foodNutrientsTable);
   const [normalizedCountResult] = await db.select({ value: count() }).from(nutrientsNormalizedTable);
+
+  const mappingCountValue = mappingCountResult?.value ?? 0;
+  const foodNutrientCountValue = foodNutrientCountResult?.value ?? 0;
+  const normalizedCountValue = normalizedCountResult?.value ?? 0;
 
   const sampleMappings = await db
     .select({
@@ -42,13 +47,13 @@ ${colors.bold}${colors.cyan}┌────────────────�
 ${colors.bold}${colors.cyan}│                   NUTRIENT MIGRATION PLAN                        │${colors.reset}
 ${colors.bold}${colors.cyan}└──────────────────────────────────────────────────────────────────┘${colors.reset}
   ${colors.bold}SUMMARY:${colors.reset}
-  • ${colors.green}${mappingCountResult.value}${colors.reset} unique mappings identified
-  • ${colors.green}${normalizedCountResult.value}${colors.reset} normalized nutrients to be merged into main table
-  • ${colors.yellow}${foodNutrientCountResult.value}${colors.reset} food_nutrient records to be updated
+  • ${colors.green}${mappingCountValue}${colors.reset} unique mappings identified
+  • ${colors.green}${normalizedCountValue}${colors.reset} normalized nutrients to be merged into main table
+  • ${colors.yellow}${foodNutrientCountValue}${colors.reset} food_nutrient records to be updated
 
   ${colors.bold}SAMPLE MAPPINGS:${colors.reset}
 ${sampleMappings.map((m) => `  ${colors.dim}•${colors.reset} ${m.original.padEnd(25)} ${colors.cyan}→${colors.reset} ${colors.bold}${m.normalized}${colors.reset}`).join('\n')}
-  ${colors.dim}... and ${Math.max(0, Number(mappingCountResult.value) - 5)} more mappings.${colors.reset}
+  ${colors.dim}... and ${Math.max(0, Number(mappingCountValue) - 5)} more mappings.${colors.reset}
 
   ${colors.bold}OPERATIONS:${colors.reset}
   1. Populate intermediate ${colors.cyan}food_nutrients_normalized${colors.reset}
@@ -135,14 +140,16 @@ export const mergeExercises = async (verbose = false) => {
   logger.info('Preparing exercise migration summary...');
   const [mappingCount] = await db.select({ value: count() }).from(exercisesNormalizedMappingTable);
   const [exerciseCount] = await db.select({ value: count() }).from(exercisesTable);
+  const mappingCountValue = mappingCount?.value ?? 0;
+  const exerciseCountValue = exerciseCount?.value ?? 0;
 
   const summary = `
 ${colors.bold}${colors.magenta}┌──────────────────────────────────────────────────────────────────┐${colors.reset}
 ${colors.bold}${colors.magenta}│                   EXERCISE MIGRATION PLAN                        │${colors.reset}
 ${colors.bold}${colors.magenta}└──────────────────────────────────────────────────────────────────┘${colors.reset}
   ${colors.bold}SUMMARY:${colors.reset}
-  • ${colors.green}${mappingCount.value}${colors.reset} unique exercise mappings identified
-  • ${colors.yellow}${exerciseCount.value}${colors.reset} total exercise records in main table
+  • ${colors.green}${mappingCountValue}${colors.reset} unique exercise mappings identified
+  • ${colors.yellow}${exerciseCountValue}${colors.reset} total exercise records in main table
 
   ${colors.bold}OPERATIONS:${colors.reset}
   1. Populate intermediate ${colors.cyan}exercise_relations_normalized${colors.reset}

@@ -9,6 +9,7 @@ import {
 } from '@repo/db/src/schema';
 import { eq, sql, inArray } from 'drizzle-orm';
 import { NotFoundError } from '../lib/error';
+import { paginationQuerySchema, optionalFilterString, optionalSearchString } from '../lib/query';
 import { toFriendlyCase } from '../lib/utils';
 
 const muscleSchema = z.object({
@@ -109,12 +110,10 @@ const searchExercisesRoute = createRoute({
   summary: 'Search exercises',
   description: 'Search exercises using full-text and fuzzy search with filters',
   request: {
-    query: z.object({
-      q: z.string().optional(),
-      limit: z.string().default('50').transform(Number),
-      offset: z.string().default('0').transform(Number),
-      muscle: z.string().optional().openapi({ description: 'Filter by muscle name' }),
-      equipment: z.string().optional().openapi({ description: 'Filter by equipment name' }),
+    query: paginationQuerySchema.extend({
+      q: optionalSearchString,
+      muscle: optionalFilterString.openapi({ description: 'Filter by muscle name' }),
+      equipment: optionalFilterString.openapi({ description: 'Filter by equipment name' }),
     }),
   },
   responses: {
@@ -154,18 +153,12 @@ exercises.openapi(searchExercisesRoute, (async (c: any) => {
 
   let result;
   if (q) {
-    const searchQuery = q
-      .trim()
-      .split(/\s+/)
-      .map((term: any) => `${term}:*`)
-      .join(' & ');
-
     result = await db.execute(sql`
       WITH matches AS (
         (
-          SELECT *, ts_rank(search_vector, to_tsquery('english', ${searchQuery})) as rank
+          SELECT *, ts_rank(search_vector, websearch_to_tsquery('english', ${q})) as rank
           FROM exercises as e
-          WHERE e.search_vector @@ to_tsquery('english', ${searchQuery})${whereClause}
+          WHERE e.search_vector @@ websearch_to_tsquery('english', ${q})${whereClause}
           LIMIT ${limit + offset + 100}
         )
         UNION ALL
@@ -209,10 +202,7 @@ const listExercisesRoute = createRoute({
   summary: 'List all exercises',
   description: 'Retrieve a list of all exercises with pagination',
   request: {
-    query: z.object({
-      limit: z.string().default('50').transform(Number),
-      offset: z.string().default('0').transform(Number),
-    }),
+    query: paginationQuerySchema,
   },
   responses: {
     200: {

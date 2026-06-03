@@ -1,4 +1,4 @@
-import { Context, Next } from 'hono';
+import type { Context, Next } from 'hono';
 import { nanoid } from 'nanoid';
 import { env } from '@repo/env-manager';
 import { RateLimitError } from '../lib/error';
@@ -20,7 +20,8 @@ function cleanupRateLimitStore() {
   }
 }
 
-setInterval(cleanupRateLimitStore, 60000);
+const rateLimitCleanup = setInterval(cleanupRateLimitStore, 60000);
+rateLimitCleanup.unref?.();
 
 export async function rateLimitMiddleware(c: Context, next: Next) {
   if (!env.RATE_LIMIT_ENABLED || env.NODE_ENV === 'test') {
@@ -58,9 +59,9 @@ export async function securityHeaders(c: Context, next: Next) {
   c.res.headers.set('X-Content-Type-Options', 'nosniff');
   c.res.headers.set('X-Frame-Options', 'DENY');
   c.res.headers.set('X-XSS-Protection', '1; mode=block');
-  c.res.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
 
   if (env.NODE_ENV === 'production') {
+    c.res.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     c.res.headers.set('Content-Security-Policy', "default-src 'self'");
     c.res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   }
@@ -69,22 +70,27 @@ export async function securityHeaders(c: Context, next: Next) {
 export async function corsMiddleware(c: Context, next: Next) {
   const origin = c.req.header('origin');
   const allowedOrigins = env.CORS_ORIGIN.split(',').map((o) => o.trim());
-  const isOriginAllowed = allowedOrigins.includes('*') || (origin && allowedOrigins.includes(origin));
+  const allowAnyOrigin = allowedOrigins.includes('*');
+  const isOriginAllowed = allowAnyOrigin || Boolean(origin && allowedOrigins.includes(origin));
+
+  const applyCorsHeaders = (headers: Headers) => {
+    if (isOriginAllowed) {
+      headers.set('Access-Control-Allow-Origin', allowAnyOrigin ? '*' : origin!);
+      headers.append('Vary', 'Origin');
+    }
+    headers.set('Access-Control-Allow-Methods', env.CORS_METHODS);
+    headers.set('Access-Control-Allow-Headers', env.CORS_HEADERS);
+    headers.set('Access-Control-Max-Age', '86400');
+  };
 
   if (c.req.method === 'OPTIONS') {
-    return c.text('', undefined, {
-      'Access-Control-Allow-Origin': isOriginAllowed ? origin || '*' : '',
-      'Access-Control-Allow-Methods': env.CORS_METHODS,
-      'Access-Control-Allow-Headers': env.CORS_HEADERS,
-      'Access-Control-Max-Age': '86400',
-    });
+    const headers = new Headers();
+    applyCorsHeaders(headers);
+    return new Response(null, { status: 204, headers });
   }
 
   await next();
-
-  c.res.headers.set('Access-Control-Allow-Origin', isOriginAllowed ? origin || '*' : '');
-  c.res.headers.set('Access-Control-Allow-Methods', env.CORS_METHODS);
-  c.res.headers.set('Access-Control-Allow-Headers', env.CORS_HEADERS);
+  applyCorsHeaders(c.res.headers);
 }
 
 export async function requestIdMiddleware(c: Context, next: Next) {

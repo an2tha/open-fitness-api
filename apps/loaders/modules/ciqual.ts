@@ -19,6 +19,11 @@ type CiqualRow = {
   [key: string]: string | number | null;
 };
 
+type NutrientMeta = {
+  name: string;
+  unit: string;
+};
+
 const downloadCiqual = async () => {
   const logger = getLogger();
   // Clear cache before downloading
@@ -33,13 +38,17 @@ const downloadCiqual = async () => {
 const parseCiqual = async () => {
   const logger = getLogger();
   const workbook = XLSX.readFile(DATA_PATH);
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(sheet) as CiqualRow[];
+  const sheetName = workbook.SheetNames[0];
+  if (!sheetName) throw new Error('No sheets in CIQUAL spreadsheet');
+  const sheet = workbook.Sheets[sheetName];
+  if (!sheet) throw new Error(`Missing CIQUAL sheet: ${sheetName}`);
 
-  if (rows.length === 0) throw new Error('No data in CIQUAL spreadsheet');
+  const rows = XLSX.utils.sheet_to_json(sheet) as CiqualRow[];
+  const firstRow = rows[0];
+  if (!firstRow) throw new Error('No data in CIQUAL spreadsheet');
 
   // Get column headers from first row
-  const headers = Object.keys(rows[0]);
+  const headers = Object.keys(firstRow);
 
   // Identify nutrient columns (those with units in parentheses like "(g/100g)", "(mg/100g)", etc.)
   const nutrientColumns = headers.filter((h) => h.match(/\([^)]+\)$/));
@@ -49,13 +58,14 @@ const parseCiqual = async () => {
   nutrientColumns.forEach((col) => {
     const match = col.match(/^(.+?)\s*\((.+?)\)$/);
     if (match) {
-      const name = match[1].trim();
-      const unit = match[2].trim();
+      const name = match[1]?.trim();
+      const unit = match[2]?.trim();
+      if (!name || !unit) return;
       nutrientMetaSet.add(JSON.stringify({ name, unit }));
     }
   });
 
-  const nutrientMeta = Array.from(nutrientMetaSet).map((s) => JSON.parse(s));
+  const nutrientMeta = Array.from(nutrientMetaSet).map((s) => JSON.parse(s) as NutrientMeta);
 
   logger.info(`parsed ${rows.length} CIQUAL records, ${nutrientMeta.length} nutrient types`);
 

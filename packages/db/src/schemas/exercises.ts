@@ -1,4 +1,4 @@
-import { pgTable, integer, varchar, timestamp, primaryKey, uniqueIndex, index, customType } from 'drizzle-orm/pg-core';
+import { pgTable, integer, varchar, timestamp, primaryKey, index, customType } from 'drizzle-orm/pg-core';
 import { type InferSelectModel, type InferInsertModel, sql } from 'drizzle-orm';
 
 export const exercisesTable = pgTable(

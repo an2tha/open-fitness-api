@@ -1,10 +1,11 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { Database, Terminal, Cpu, ArrowRight, Cloud, Check, Activity } from 'lucide-react';
+import { Database, Terminal, Cpu, ArrowRight, Cloud, Activity } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { authClient } from './auth/client';
 
 type HeroVideo = {
   id: string;
@@ -95,12 +96,8 @@ const stagger = {
 
 export default function LandingPage() {
   const router = useRouter();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  useEffect(() => {
-    const session = localStorage.getItem('ofdata_session_token');
-    if (session) setIsLoggedIn(true);
-  }, []);
+  const session = authClient.useSession();
+  const isLoggedIn = Boolean(session.data?.user);
 
   const handleAccessClick = () => {
     if (isLoggedIn) {

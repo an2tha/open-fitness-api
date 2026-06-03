@@ -1,5 +1,5 @@
-import { Context, Next } from 'hono';
-import { getCookie, setCookie } from 'hono/cookie';
+import type { Context, Next } from 'hono';
+import { getCookie } from 'hono/cookie';
 import { auth } from '../routes/auth';
 import { UnauthorizedError } from '../lib/error';
 
@@ -15,7 +15,7 @@ function extractSessionToken(c: Context): string | null {
   const authHeader = c.req.header('authorization');
   if (authHeader) {
     const match = authHeader.match(/^Bearer\s+(.+)$/i);
-    if (match) return match[1];
+    if (match?.[1]) return match[1];
   }
 
   return null;

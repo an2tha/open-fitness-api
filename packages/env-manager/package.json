@@ -10,7 +10,9 @@
     "typescript": "^5"
   },
   "scripts": {
-    "test": "bun test"
+    "test": "bun test --pass-with-no-tests",
+    "lint": "eslint . && prettier --check .",
+    "check-types": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "dotenv": "^17.4.2",

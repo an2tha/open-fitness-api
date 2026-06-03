@@ -1,4 +1,4 @@
-import { pgTable, integer, varchar, primaryKey, uniqueIndex, index, customType } from 'drizzle-orm/pg-core';
+import { pgTable, integer, varchar, primaryKey, index, customType } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { foodsTable } from './foods';
 

@@ -24,7 +24,7 @@ export default function DashboardSidebar({ active }: { active: SidebarSection })
       <Link href="/docs" className={itemClass(false)}>
         API Docs
       </Link>
-      <a href="/openapi.json" target="_blank" className={itemClass(false)}>
+      <a href="/api/v1/openapi.json" target="_blank" rel="noreferrer" className={itemClass(false)}>
         OpenAPI
       </a>
     </aside>

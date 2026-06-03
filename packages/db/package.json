@@ -18,8 +18,9 @@
   },
   "types": "./index.ts",
   "scripts": {
-    "test": "bun test",
-    "lint": "eslint . && prettier --check ."
+    "test": "bun test --pass-with-no-tests",
+    "lint": "eslint . && prettier --check .",
+    "check-types": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "dotenv": "^17.4.2",

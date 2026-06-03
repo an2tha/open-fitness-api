@@ -3,6 +3,7 @@ import { db } from '@repo/db';
 import { supplementsTable } from '@repo/db/src/schema';
 import { eq, sql } from 'drizzle-orm';
 import { NotFoundError } from '../lib/error';
+import { paginationQuerySchema, optionalSearchString } from '../lib/query';
 import { toFriendlyCase } from '../lib/utils';
 
 const supplementSchema = z.object({
@@ -24,10 +25,8 @@ const searchSupplementsRoute = createRoute({
   summary: 'Search supplements',
   description: 'Search supplements using full-text and fuzzy search',
   request: {
-    query: z.object({
-      q: z.string().optional(),
-      limit: z.string().default('50').transform(Number),
-      offset: z.string().default('0').transform(Number),
+    query: paginationQuerySchema.extend({
+      q: optionalSearchString,
     }),
   },
   responses: {
@@ -49,18 +48,12 @@ supplements.openapi(searchSupplementsRoute, async (c) => {
 
   let result;
   if (q) {
-    const searchQuery = q
-      .trim()
-      .split(/\s+/)
-      .map((term) => `${term}:*`)
-      .join(' & ');
-
     result = await db.execute(sql`
       WITH matches AS (
         (
-          SELECT *, ts_rank(search_vector, to_tsquery('english', ${searchQuery})) as rank
+          SELECT *, ts_rank(search_vector, websearch_to_tsquery('english', ${q})) as rank
           FROM supplements
-          WHERE search_vector @@ to_tsquery('english', ${searchQuery})
+          WHERE search_vector @@ websearch_to_tsquery('english', ${q})
           LIMIT ${limit + offset + 100}
         )
         UNION ALL
@@ -110,10 +103,7 @@ const listSupplementsRoute = createRoute({
   summary: 'List all supplements',
   description: 'Retrieve a list of all supplements with pagination',
   request: {
-    query: z.object({
-      limit: z.string().default('50').transform(Number),
-      offset: z.string().default('0').transform(Number),
-    }),
+    query: paginationQuerySchema,
   },
   responses: {
     200: {

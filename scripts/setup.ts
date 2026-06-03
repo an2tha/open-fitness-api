@@ -121,7 +121,8 @@ async function runShellWithSpinner(cmd: string, message: string) {
     for await (const line of shell.lines()) {
       if (line.trim()) {
         // Strip ANSI escape codes from the subtext to prevent UI glitches
-        const cleanLine = line.replace(/\u001b\[[0-9;]*m/g, '').trim();
+        const ansiColorPattern = new RegExp(String.raw`\u001B\[[0-9;]*m`, 'g');
+        const cleanLine = line.replace(ansiColorPattern, '').trim();
         if (cleanLine) spinner.update(cleanLine);
       }
     }
@@ -181,26 +182,32 @@ async function run() {
     UI.info('.env already exists');
   }
 
-  // Ensure MASTER_KEY is present in .env
-  {
+  const ensureSecret = (key: string, bytes: number, comment: string) => {
     const envContents = readFileSync('.env', 'utf-8');
-    const hasMasterKey = /^MASTER_KEY=.+$/m.test(envContents);
-    if (!hasMasterKey) {
-      const masterKey = randomBytes(48).toString('base64url'); // 64-char, 384-bit entropy
-      const separator = envContents.endsWith('\n') ? '' : '\n';
-      writeFileSync(
-        '.env',
-        `${envContents}${separator}\n# Auto-generated master key for API key management\nMASTER_KEY=${masterKey}\n`,
-      );
-      UI.success(`MASTER_KEY generated and written to .env`);
-      console.log(
-        `\n  ${colors.bold}${colors.yellow}⚠  Save this master key — it controls API key creation:${colors.reset}`,
-      );
-      console.log(`  ${colors.cyan}${masterKey}${colors.reset}\n`);
-    } else {
-      UI.info('MASTER_KEY already present in .env');
+    const existing = envContents
+      .split(/\r?\n/)
+      .find((line) => line.startsWith(`${key}=`))
+      ?.slice(key.length + 1)
+      .trim();
+
+    if (existing) {
+      UI.info(`${key} already present in .env`);
+      return;
     }
-  }
+
+    const generated = randomBytes(bytes).toString('base64url');
+    const line = `${key}=${generated}`;
+    const keyPattern = new RegExp(`^${key}=.*$`, 'm');
+    const nextContents = keyPattern.test(envContents)
+      ? envContents.replace(keyPattern, line)
+      : `${envContents}${envContents.endsWith('\n') ? '' : '\n'}\n# ${comment}\n${line}\n`;
+
+    writeFileSync('.env', nextContents);
+    UI.success(`${key} generated and written to .env`);
+  };
+
+  ensureSecret('BETTER_AUTH_SECRET', 32, 'Auto-generated Better Auth session secret');
+  ensureSecret('MASTER_KEY', 48, 'Auto-generated master key for API key management');
 
   UI.step('Infrastructure');
   try {
@@ -240,7 +247,7 @@ async function run() {
       // Point local loaders to the exposed Docker port (localhost:5432)
       await runShellWithSpinner(`bun run load ${source}`, `Loading ${source} data`);
       UI.success('Data loading finished');
-    } catch (err) {
+    } catch (_err) {
       UI.error('Local data loading failed. You can try running it via Docker instead:');
       console.log(
         `  ${colors.gray}docker compose run --rm -e DATABASE_URL=postgres://user:password@db:5432/fitnessdata api bun run load ${source}${colors.reset}`,
@@ -277,7 +284,9 @@ async function run() {
       ],
     });
 
-    await runShellWithSpinner(`bun run normalize all`);
+    if (apiKey) process.env.AI_API_KEY = apiKey;
+    process.env.AI_BASE_URL = baseUrl;
+    await runShellWithSpinner(`bun run normalize ${type}`, `Running AI normalization: ${type}`);
   }
 
   UI.step('Completion');

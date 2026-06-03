@@ -3,6 +3,7 @@ import { db } from '@repo/db';
 import { nutrientsTable } from '@repo/db/src/schema';
 import { eq, sql } from 'drizzle-orm';
 import { NotFoundError } from '../lib/error';
+import { paginationQuerySchema, requiredSearchString } from '../lib/query';
 import { toFriendlyCase } from '../lib/utils';
 
 const nutrientSchema = z.object({
@@ -18,10 +19,8 @@ const searchNutrientsRoute = createRoute({
   summary: 'Search nutrients',
   description: 'Search nutrients using full-text and fuzzy search',
   request: {
-    query: z.object({
-      q: z.string().min(1, 'Search query is required'),
-      limit: z.string().default('50').transform(Number),
-      offset: z.string().default('0').transform(Number),
+    query: paginationQuerySchema.extend({
+      q: requiredSearchString,
     }),
   },
   responses: {
@@ -40,18 +39,12 @@ const nutrients = new OpenAPIHono();
 
 nutrients.openapi(searchNutrientsRoute, async (c) => {
   const { q, limit, offset } = c.req.valid('query');
-  const searchQuery = q
-    .trim()
-    .split(/\s+/)
-    .map((term) => `${term}:*`)
-    .join(' & ');
-
   const result = await db.execute(sql`
     WITH matches AS (
       (
-        SELECT *, ts_rank(search_vector, to_tsquery('english', ${searchQuery})) as rank
-        FROM nutrients 
-        WHERE search_vector @@ to_tsquery('english', ${searchQuery})
+        SELECT *, ts_rank(search_vector, websearch_to_tsquery('english', ${q})) as rank
+        FROM nutrients
+        WHERE search_vector @@ websearch_to_tsquery('english', ${q})
         LIMIT ${limit + offset + 100}
       )
       UNION ALL
@@ -91,10 +84,7 @@ const listNutrientsRoute = createRoute({
   summary: 'List all nutrients',
   description: 'Retrieve a list of all nutrients with pagination',
   request: {
-    query: z.object({
-      limit: z.string().default('50').transform(Number),
-      offset: z.string().default('0').transform(Number),
-    }),
+    query: paginationQuerySchema,
   },
   responses: {
     200: {

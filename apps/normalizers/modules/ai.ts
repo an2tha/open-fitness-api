@@ -3,9 +3,9 @@ import { generateObject as sdkGenerateObject, streamObject as sdkStreamObject } 
 import { z } from 'zod';
 import search from '@inquirer/search';
 import { getLogger } from '../utils/logger';
-import { env } from '@repo/env-manager';
+import '@repo/env-manager';
 
-// Custom AI env vars not in env-manager schema - loaded via @repo/env-manager
+// Custom AI env vars are loaded into process.env by @repo/env-manager.
 
 let selectedModel: string | null = null;
 
@@ -123,7 +123,7 @@ export const generateNormalizedObject = async <T>(
       }
     }
 
-    return await object;
+    return (await object) as T;
   }
 
   const { object } = await sdkGenerateObject({
@@ -133,7 +133,7 @@ export const generateNormalizedObject = async <T>(
     temperature: options?.temperature ?? 0.1,
   });
 
-  return object;
+  return object as T;
 };
 
 export const setModel = (model: string) => {

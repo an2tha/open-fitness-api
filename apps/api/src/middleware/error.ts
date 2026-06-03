@@ -1,4 +1,4 @@
-import { Context, Next } from 'hono';
+import type { Context, Next } from 'hono';
 import { AppError, fromZodError } from '../lib/error';
 import { env } from '@repo/env-manager';
 
@@ -18,7 +18,7 @@ export async function errorMiddleware(c: Context, next: Next) {
             requestId,
           },
         },
-        error.statusCode,
+        error.statusCode as any,
       );
       return response;
     }
@@ -36,7 +36,7 @@ export async function errorMiddleware(c: Context, next: Next) {
               requestId,
             },
           },
-          validationError.statusCode,
+          validationError.statusCode as any,
         );
         return response;
       }
