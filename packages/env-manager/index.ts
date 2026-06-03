@@ -29,9 +29,17 @@ const envSchema = z
     BETTER_AUTH_SECRET: z.string().optional(),
     LOADER_DB_URL: z.string().default(process.env.DATABASE_URL ?? ''),
     API_KEY_AUTH_ENABLED: z.string().default('true'),
+    SIGNUPS_DISABLED: z
+      .string()
+      .default('true')
+      .transform((v) => v.trim().toLowerCase() === 'true'),
+    API_ONLY: z
+      .string()
+      .default('true')
+      .transform((v) => v.trim().toLowerCase() === 'true'),
   })
   .superRefine((value, ctx) => {
-    if (value.NODE_ENV === 'production' && !value.BETTER_AUTH_SECRET?.trim()) {
+    if (value.NODE_ENV === 'production' && !value.API_ONLY && !value.BETTER_AUTH_SECRET?.trim()) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['BETTER_AUTH_SECRET'],

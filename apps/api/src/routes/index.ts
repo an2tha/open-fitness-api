@@ -8,6 +8,8 @@ import nutrients from './nutrients';
 import { auth } from './auth';
 import { requireSession } from '../middleware/session-auth';
 import { readAllAppSettings, readPublicAppSettings, setAppSetting } from '../lib/app-settings';
+import { ForbiddenError } from '../lib/error';
+import { startMasterAccessProvisioning } from '../lib/master-access';
 
 const routes = new OpenAPIHono();
 
@@ -125,12 +127,20 @@ routes.get('/auth/settings', async (c) => {
 });
 
 routes.get('/admin/settings', async (c) => {
+  if (env.API_ONLY) {
+    throw new ForbiddenError('User management is disabled in API_ONLY mode.');
+  }
+
   await requireSession(c, async () => {});
   const settings = await readAllAppSettings();
   return c.json({ success: true, settings, allowNewLogins: settings.allowNewLogins !== false });
 });
 
 routes.put('/admin/settings', async (c) => {
+  if (env.API_ONLY) {
+    throw new ForbiddenError('User management is disabled in API_ONLY mode.');
+  }
+
   await requireSession(c, async () => {});
 
   const body = updateSettingsSchema.parse(await c.req.json());
@@ -148,6 +158,12 @@ routes.put('/admin/settings', async (c) => {
 });
 
 routes.all('/auth/*', async (c) => {
+  if (env.API_ONLY) {
+    throw new ForbiddenError('User management is disabled in API_ONLY mode.');
+  }
+
+  await startMasterAccessProvisioning(auth);
+
   if (env.NODE_ENV !== 'production') {
     console.log('[Hono → BetterAuth]', {
       path: c.req.path,
@@ -164,7 +180,7 @@ routes.all('/auth/*', async (c) => {
           success: false,
           error: {
             code: 'SIGN_UP_DISABLED',
-            message: 'New logins are currently disabled',
+            message: 'New signups are currently disabled',
           },
         },
         403,

@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import { env } from '@repo/env-manager';
 import { db } from './db';
 import { appSettingsTable } from '@repo/db/src/schema';
 
@@ -31,6 +32,14 @@ export async function ensureAppSettingsTable() {
   return ensurePromise;
 }
 
+function applyEnvOverrides(settings: Record<string, unknown>) {
+  if (env.SIGNUPS_DISABLED || env.API_ONLY) {
+    settings.allowNewLogins = false;
+  }
+
+  return settings;
+}
+
 export async function readAllAppSettings() {
   await ensureAppSettingsTable();
 
@@ -41,10 +50,14 @@ export async function readAllAppSettings() {
     settings[row.key] = row.value;
   }
 
-  return settings as AppSettings;
+  return applyEnvOverrides(settings) as AppSettings;
 }
 
 export async function readPublicAppSettings() {
+  if (env.SIGNUPS_DISABLED || env.API_ONLY) {
+    return { allowNewLogins: false };
+  }
+
   const settings = await readAllAppSettings();
   return {
     allowNewLogins: settings.allowNewLogins !== false,

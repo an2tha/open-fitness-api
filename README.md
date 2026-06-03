@@ -18,7 +18,11 @@ Open `.env` and configure your settings. Key variables include:
 
 - `DATABASE_URL`: Connection string for your PostgreSQL database.
 - `API_KEY_AUTH_ENABLED`: Set to `true` (default) to require API keys for all requests.
-- `BETTER_AUTH_SECRET`: A random string used for session security.
+- `SIGNUPS_DISABLED`: Defaults to `true`. Blocks all new signups. When `API_ONLY=false`, startup provisions and prints a random master username/password plus a master API key.
+- `API_ONLY`: Defaults to `true`. Disables user and API-key management routes/pages. On startup, only a random master API key is printed and accepted.
+- `BETTER_AUTH_SECRET`: A random string used for session security (required in production unless `API_ONLY=true`).
+
+> Hint: the default `.env.example` is locked down for API-only usage. Watch the startup logs for `🔐 API_ONLY=true` and copy the printed master API key. To bring back the dashboard/user flows, set `API_ONLY=false`; to allow public signups too, also set `SIGNUPS_DISABLED=false`.
 
 ### 2. Infrastructure
 
@@ -56,7 +60,7 @@ Open Fitness Data uses [Better Auth](https://www.better-auth.com/) with the API 
 
 ### Creating an API Key
 
-By default, the dashboard at `http://localhost:3000/dashboard` allows you to create and manage your API keys.
+When `API_ONLY=false`, the dashboard at `http://localhost:3000/dashboard` allows you to create and manage your API keys. With the default `API_ONLY=true`, skip the dashboard and use the master API key printed in the startup logs.
 
 ### Using the API Key
 
@@ -67,7 +71,7 @@ Include your API key in the request headers:
 
 ### Disabling Authentication (Local Dev only)
 
-To disable API key requirement for local testing, set `API_KEY_AUTH_ENABLED=false` in your `.env` file.
+To disable API key requirement for local testing, set `API_ONLY=false` and `API_KEY_AUTH_ENABLED=false` in your `.env` file. `API_ONLY=true` always requires the startup master API key.
 
 ## Management Commands
 

@@ -3,8 +3,10 @@ import { requestIdMiddleware, corsMiddleware, securityHeaders, rateLimitMiddlewa
 import { apiKeyAuthMiddleware } from './middleware/api-key-auth';
 import { logger } from './middleware/logger';
 import routes from './routes';
+import { auth } from './routes/auth';
 import { env } from '@repo/env-manager';
 import { AppError, fromZodError } from './lib/error';
+import { startMasterAccessProvisioningInBackground } from './lib/master-access';
 
 function handleAppError(error: unknown, c: Context) {
   const requestId = c.get('requestId') || 'unknown';
@@ -57,6 +59,8 @@ function handleAppError(error: unknown, c: Context) {
 }
 
 export function createApp(options: { enableApiKeyAuth?: boolean } = {}) {
+  startMasterAccessProvisioningInBackground(auth);
+
   const app = new Hono({
     strict: false,
   });
@@ -67,8 +71,8 @@ export function createApp(options: { enableApiKeyAuth?: boolean } = {}) {
   app.use('*', rateLimitMiddleware);
   app.use('*', logger);
 
-  // API key authentication (enable with API_KEY_AUTH_ENABLED=true)
-  if (options.enableApiKeyAuth ?? env.API_KEY_AUTH_ENABLED === 'true') {
+  // API key authentication (enable with API_KEY_AUTH_ENABLED=true, always on by default for API_ONLY)
+  if (options.enableApiKeyAuth ?? (env.API_ONLY || env.API_KEY_AUTH_ENABLED === 'true')) {
     app.use('*', apiKeyAuthMiddleware);
   }
 

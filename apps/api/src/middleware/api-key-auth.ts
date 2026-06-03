@@ -2,6 +2,7 @@ import type { Context, Next } from 'hono';
 import { UnauthorizedError, ForbiddenError } from '../lib/error';
 import { env } from '@repo/env-manager';
 import { auth } from '../routes/auth';
+import { isMasterApiKey } from '../lib/master-access';
 
 /**
  * Extracts the API key from the request.
@@ -32,13 +33,13 @@ function extractApiKey(c: Context): string | null {
 export async function apiKeyAuthMiddleware(c: Context, next: Next) {
   const path = c.req.path;
 
-  // Allow health checks, docs, OpenAPI spec, and admin routes without an API key
-  // (admin routes enforce their own session auth)
-  const publicPaths = ['/health', '/health/db', '/swagger-docs', '/docs', '/openapi.json'];
+  // Allow health checks, docs, OpenAPI spec, and auth settings without an API key.
+  // Admin and Better Auth routes are public only outside API_ONLY; admin routes enforce their own session auth.
+  const publicPaths = ['/health', '/health/db', '/swagger-docs', '/docs', '/openapi.json', '/auth/settings'];
   const prefix = env.API_PREFIX;
   const isPublic = publicPaths.some((p) => path === `${prefix}${p}` || path === p);
-  const isAuth = path.startsWith(`${prefix}/auth`) || path.startsWith(`${prefix}/api-key`);
-  const isAdmin = path.startsWith(`${prefix}/admin`);
+  const isAuth = !env.API_ONLY && (path.startsWith(`${prefix}/auth`) || path.startsWith(`${prefix}/api-key`));
+  const isAdmin = !env.API_ONLY && path.startsWith(`${prefix}/admin`);
   if (isPublic || isAuth || isAdmin) {
     await next();
     return;
@@ -49,6 +50,26 @@ export async function apiKeyAuthMiddleware(c: Context, next: Next) {
     throw new UnauthorizedError(
       'Missing API key. Provide it via "Authorization: Bearer <key>" or "X-API-Key: <key>" header.',
     );
+  }
+
+  if (isMasterApiKey(plaintextKey)) {
+    const masterApiKey = {
+      id: 'master',
+      name: 'Master API Key',
+      enabled: true,
+      referenceId: 'master',
+    };
+
+    c.set('apiKey', masterApiKey);
+    c.set('apiKeyId', masterApiKey.id);
+    c.set('apiKeyName', masterApiKey.name);
+
+    await next();
+    return;
+  }
+
+  if (env.API_ONLY) {
+    throw new UnauthorizedError('Invalid API key. API_ONLY mode accepts only the startup master API key.');
   }
 
   try {

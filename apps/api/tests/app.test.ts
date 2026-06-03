@@ -4,6 +4,8 @@ import { createConnection } from 'node:net';
 process.env.NODE_ENV = 'test';
 process.env.RATE_LIMIT_ENABLED = 'false';
 process.env.API_KEY_AUTH_ENABLED = 'false';
+process.env.API_ONLY = 'false';
+process.env.SIGNUPS_DISABLED = 'false';
 process.env.SWAGGER_ENABLED = 'true';
 process.env.DATABASE_URL =
   process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL ?? 'postgres://user:password@localhost:5432/fitnessdata';

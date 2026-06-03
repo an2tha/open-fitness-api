@@ -1,4 +1,5 @@
 import { headers } from 'next/headers';
+import { redirect } from 'next/navigation';
 import AuthForm from './auth-form';
 
 export const dynamic = 'force-dynamic';
@@ -28,6 +29,10 @@ async function getAllowNewLogins() {
 }
 
 export default async function AuthPage() {
+  if (process.env.API_ONLY === 'true') {
+    redirect('/docs');
+  }
+
   const allowNewLogins = await getAllowNewLogins();
   return <AuthForm allowNewLogins={allowNewLogins} />;
 }

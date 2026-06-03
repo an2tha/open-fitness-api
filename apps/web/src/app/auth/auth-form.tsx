@@ -25,7 +25,7 @@ export default function AuthForm({ allowNewLogins }: { allowNewLogins: boolean }
     setError(null);
 
     if (mode === 'sign-up' && !allowNewLogins) {
-      setError('New logins are currently disabled.');
+      setError('New signups are currently disabled.');
       setLoading(false);
       return;
     }
